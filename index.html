@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conferência de Cartões de Ponto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --ink:#17191c;
+  --graphite:#22262b;
+  --paper:#fbfaf8;
+  --card:#ffffff;
+  --line:#ddd8cf;
+  --muted:#6d6b66;
+  --amber:#e39a11;
+  --amber-soft:#fdf3dd;
+  --green:#2c7a4b;
+  --green-soft:#e6f2ea;
+  --red:#c8202c;
+  --red-soft:#fbe9ea;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Segoe UI",Roboto,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+}
+button{font:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.topo{background:var(--graphite);color:#f3f1ec;padding:14px 22px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+.topo h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.2px}
+.topo p{margin:2px 0 0;font-size:12.5px;color:#a9a6a0}
+.comp{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfccc6}
+.comp input{background:#2f343a;border:1px solid #444a51;color:#fff;border-radius:4px;padding:6px 9px;font-size:13px;width:130px}
+
+.wrap{display:grid;grid-template-columns:330px minmax(0,1fr);align-items:start}
+.lado{border-right:1px solid var(--line);padding:20px;min-height:calc(100vh - 62px);background:#f7f5f1}
+.principal{padding:22px 24px 60px}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr}
+  .lado{border-right:none;border-bottom:1px solid var(--line);min-height:0}
+}
+
+.etapa{margin-bottom:24px}
+.etapa h2{font-size:13px;font-weight:700;margin:0 0 3px;display:flex;gap:8px;align-items:baseline}
+.etapa h2 span{color:var(--muted);font-weight:600}
+.etapa .dica{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+
+.zona{border:1.5px dashed #c6c0b5;background:#fff;border-radius:6px;padding:16px 14px;text-align:center;cursor:pointer;display:block;transition:border-color .15s,background .15s}
+.zona:hover,.zona.sobre{border-color:var(--ink);background:#fffdf7}
+.zona b{display:block;font-size:13.5px}
+.zona small{color:var(--muted);font-size:12px}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:4px;background:#fff;font-size:13px;margin-bottom:8px}
+label.campo{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+
+.arquivos{list-style:none;margin:10px 0 0;padding:0;font-size:12.5px}
+.arquivos li{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #e7e3db}
+.arquivos li span{color:var(--muted);white-space:nowrap}
+.arquivos li.alerta span{color:var(--red)}
+.nome-arq{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.acoes{display:flex;flex-direction:column;gap:8px}
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:9px 12px;border-radius:4px;cursor:pointer;font-size:13.5px;font-weight:600}
+.btn:hover{background:#000}
+.btn.sec{background:#fff;color:var(--ink)}
+.btn.sec:hover{background:#f0ece4}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.placar{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:18px 20px;margin-bottom:20px}
+.placar-topo{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;margin-bottom:16px}
+.num{font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.num.pend{color:var(--amber)}
+.num.ok{color:var(--green)}
+.num.sem{color:var(--red)}
+.rot{font-size:12.5px;color:var(--muted);margin-top:4px}
+.tally{display:flex;flex-wrap:wrap;gap:3px}
+.tick{width:13px;height:20px;border-radius:2px;background:var(--amber);cursor:pointer;border:none;padding:0}
+.tick.ok{background:var(--green)}
+.tick.sem{background:var(--red)}
+.tick:hover{transform:translateY(-2px)}
+.vazio{color:var(--muted);font-size:14px;padding:40px 0;text-align:center;border:1px solid var(--line);border-radius:6px;background:#fff}
+
+.revisao{border:1px solid var(--line);background:#fff;border-radius:6px;padding:16px 18px;margin-bottom:20px}
+.revisao h3{margin:0 0 4px;font-size:14px}
+.revisao p{margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.recorte{border:1px solid var(--line);border-radius:5px;overflow:hidden;background:#fff}
+.recorte img{display:block;width:100%;background:#fff;border-bottom:1px solid #eee9e0}
+.recorte .info{padding:7px 9px;font-size:12px}
+.recorte .info b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recorte button{width:100%;border:none;border-top:1px solid var(--line);background:#f7f5f1;padding:6px;cursor:pointer;font-size:12px}
+.recorte button:hover{background:#ece7dd}
+
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.filtros input[type=search]{padding:8px 10px;border:1px solid var(--line);border-radius:4px;min-width:200px;font-size:13.5px}
+.filtros select{width:auto;margin:0;padding:8px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px;cursor:pointer;font-size:13px}
+.chip[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #ece8e0;font-size:13.5px;vertical-align:middle}
+th{background:#f4f1eb;font-size:12px;color:#4a4842;font-weight:700}
+td.mat{font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.tag{display:inline-block;padding:2px 9px;border-radius:3px;font-size:12px;font-weight:700;white-space:nowrap}
+.tag.ok{background:var(--green-soft);color:var(--green)}
+.tag.pend{background:var(--amber-soft);color:#946107}
+.tag.sem{background:var(--red-soft);color:var(--red)}
+.tag.neutro{background:#f0ece4;color:var(--muted)}
+.origem{font-size:12px;color:var(--muted)}
+.origem.manual{color:var(--ink);font-style:italic}
+.alternar{border:1px solid var(--line);background:#fff;border-radius:4px;padding:4px 9px;font-size:12px;cursor:pointer;white-space:nowrap}
+.alternar:hover{background:#f0ece4}
+.aviso{background:var(--amber-soft);border:1px solid #f0d79a;border-radius:5px;padding:10px 13px;font-size:13px;margin-bottom:14px}
+.tabela-rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:6px}
+.tabela-rolagem table{min-width:760px}
+.rodape{font-size:12.5px;color:var(--muted);margin-top:14px}
+.tabela-rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:6px}
+.tabela-rolagem table{min-width:900px}
+.barra{height:6px;background:#e7e3db;border-radius:3px;overflow:hidden;margin-top:10px}
+.barra div{height:100%;width:0;background:var(--ink);transition:width .2s}
+.aviso button{margin-left:6px}
+.tag.outra{background:#e8eef6;color:#2d4f7c}
+.origem.outra{color:#2d4f7c}
+.comp input.invalido{border-color:#ff6b6b}
+.comp small{display:block;font-size:11px;color:#a9a6a0}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div>
+    <h1>Conferência de cartões de ponto</h1>
+    <p>Separa os cartões de ponto dos outros documentos, cruza com a lista de colaboradores e aponta pendentes e cartões sem assinatura.</p>
+  </div>
+  <div class="comp">
+    <label for="comp">Competência</label>
+    <div>
+      <input id="comp" type="text" placeholder="09/2026" autocomplete="off">
+      <small id="compInfo">mês/ano do cartão</small>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="lado">
+    <div class="etapa">
+      <h2><span>1</span> Lista de colaboradores</h2>
+      <p class="dica">Planilha em Excel ou CSV com matrícula e nome.</p>
+      <label class="zona" id="zonaXls" for="inXls">
+        <b id="rotXls">Escolher planilha</b>
+        <small>.xlsx, .xls ou .csv</small>
+      </label>
+      <input type="file" id="inXls" accept=".xlsx,.xls,.csv,.xlsm">
+      <div id="mapa" hidden>
+        <label class="campo" for="selAba">Aba</label>
+        <select id="selAba"></select>
+        <label class="campo" for="selMat">Coluna da matrícula</label>
+        <select id="selMat"></select>
+        <label class="campo" for="selNome">Coluna do nome</label>
+        <select id="selNome"></select>
+        <label class="campo" for="selExtra">Coluna de gerência / setor</label>
+        <select id="selExtra"></select>
+        <label class="campo" for="selSit">Coluna de situação, se a planilha já tiver</label>
+        <select id="selSit"></select>
+        <label class="campo" for="selComp">Coluna de competência, se a planilha tiver</label>
+        <select id="selComp"></select>
+      </div>
+    </div>
+
+    <div class="etapa">
+      <h2><span>2</span> Cartões em PDF</h2>
+      <p class="dica">Um PDF único, vários lotes ou arquivos separados. Páginas de outros documentos são ignoradas.</p>
+      <label class="zona" id="zonaPdf" for="inPdf">
+        <b id="rotPdf">Escolher PDFs</b>
+        <small>arraste os arquivos aqui</small>
+      </label>
+      <input type="file" id="inPdf" accept="application/pdf" multiple>
+      <div class="barra" id="barra" hidden><div></div></div>
+      <p class="dica" id="barraTxt" style="margin:4px 0 0"></p>
+      <button class="btn sec" id="btnParar" hidden style="width:100%;margin-top:6px">Parar agora</button>
+      <button class="btn sec" id="btnReler" disabled style="width:100%;margin-top:6px">Ler os cartões de novo</button>
+      <ul class="arquivos" id="listaPdf"></ul>
+    </div>
+
+    <div class="etapa">
+      <h2><span>3</span> Assinatura</h2>
+      <p class="dica">Abre cada cartão localizado e olha o campo de assinatura.</p>
+      <label class="campo" for="selRegiao">Onde está a assinatura</label>
+      <select id="selRegiao">
+        <option value="auto">Logo acima de “Assinatura colaborador”</option>
+        <option value="acima">Um pouco mais acima</option>
+        <option value="abaixo">Um pouco mais abaixo</option>
+        <option value="rodape">Faixa do rodapé (cartão digitalizado)</option>
+      </select>
+      <button class="btn sec" id="btnAssin" disabled style="width:100%">Verificar assinaturas</button>
+    </div>
+
+    <div class="etapa acoes">
+      <label class="campo" for="selGrupo">O que baixar</label>
+      <select id="selGrupo">
+        <option value="todos">Todos os cartões localizados</option>
+        <option value="pendentes">Cartões dos pendentes da planilha</option>
+        <option value="sem">Cartões sem assinatura</option>
+      </select>
+      <label class="dica" style="display:flex;gap:8px;align-items:flex-start;margin:0;cursor:pointer">
+        <input type="checkbox" id="chkMelhorar" checked style="margin-top:3px">
+        <span>Melhorar a imagem dos cartões digitalizados: fundo branco, texto mais escuro, folha em pé e arquivo bem menor para mandar no WhatsApp.</span>
+      </label>
+      <p class="dica" style="margin:0">Arquivos saem como MATRICULA_NOME_COMPETENCIA.pdf. Sem assinatura ganha _SEM_ASSINATURA no final.</p>
+      <button class="btn" id="btnZip" disabled>Baixar ZIP · 1 PDF por colaborador</button>
+      <button class="btn sec" id="btnPdf" disabled>Baixar num PDF único</button>
+      <button class="btn sec" id="btnXlsx" disabled>Baixar relatório em Excel</button>
+      <button class="btn sec" id="btnCopiar" disabled>Copiar pendentes para o WhatsApp</button>
+      <button class="btn sec" id="btnLimpar">Limpar tudo</button>
+      <p id="msg" class="dica" style="margin:2px 0 0"></p>
+    </div>
+  </aside>
+
+  <main class="principal">
+    <div id="secVazio" class="vazio">Carregue a planilha de colaboradores para começar.</div>
+    <div id="secPlacar"></div>
+    <div id="secAvisos"></div>
+    <div id="secRevisao"></div>
+    <div class="filtros" id="secFiltros" hidden>
+      <input type="search" id="busca" placeholder="Buscar nome ou matrícula">
+      <button class="chip" data-f="todos" aria-pressed="true">Todos</button>
+      <button class="chip" data-f="pendentes" aria-pressed="false">Pendentes</button>
+      <button class="chip" data-f="ok" aria-pressed="false">Recebidos</button>
+      <button class="chip" data-f="sem" aria-pressed="false">Sem assinatura</button>
+      <button class="chip" data-f="outra" aria-pressed="false">Outra competência</button>
+      <select id="selSetor"><option value="">Todas as gerências</option></select>
+    </div>
+    <div id="secTabela"></div>
+    <p class="rodape">Nenhum arquivo sai do seu computador: tudo é lido dentro do navegador. O andamento fica salvo neste navegador e volta sozinho se a página fechar ou travar.</p>
+  </main>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+var estado = {
+  wb: null, planilhaNome: "", aba: null, linhas: [], brutas: [], cabecalho: [], linhaCab: 0,
+  col: { mat: -1, nome: -1, extra: -1, sit: -1, comp: -1 },
+  pessoasTodas: [], pessoas: [], versaoPessoas: 0,
+  pdfs: [], manual: {},
+  assin: {}, assinManual: {}, versaoAssin: 0, limiar: 0.003, verificado: false, indistinto: false, verTodos: false,
+  filtro: "todos", busca: "", setor: "", ultimo: [], trabalhando: "", recuperado: null
+};
+var MAX_CONTINUACAO = 2;
+var LIMITE_ZIP = 250 * 1024 * 1024;
+
+/* ---------- utilidades ---------- */
+function normalizar(s){
+  return String(s == null ? "" : s)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+}
+function rawDe(s){
+  return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ");
+}
+function soDigitos(s){ return String(s == null ? "" : s).replace(/\D/g, "").replace(/^0+/, ""); }
+function extrairNums(texto){
+  var s = new Set(), re = /\d+/g, m;
+  while ((m = re.exec(texto))){ var d = m[0].replace(/^0+/, ""); if (d.length >= 3) s.add(d); }
+  return Array.from(s);
+}
+function escapar(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function $(id){ return document.getElementById(id); }
+function msg(t){ $("msg").textContent = t || ""; }
+function progresso(atual, total, texto){
+  var b = $("barra");
+  if (atual == null){ b.hidden = true; $("barraTxt").textContent = ""; return; }
+  b.hidden = false;
+  b.firstElementChild.style.width = (total ? Math.round(atual * 100 / total) : 0) + "%";
+  $("barraTxt").textContent = texto || "";
+}
+function baixar(blob, nome){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 20000);
+}
+function limparParte(v){
+  return normalizar(v).replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "").replace(/^_+|_+$/g, "");
+}
+function esperar(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+/* ---------- ceder a vez sem depender de setTimeout ----------
+   Em aba escondida o navegador segura setTimeout (chega a 1x por minuto).
+   MessageChannel nao sofre essa freada, entao o trabalho continua rodando. */
+var _canal = null, _filaCeder = [];
+function cederVez(){
+  return new Promise(function(res){
+    if (!_canal){
+      _canal = new MessageChannel();
+      _canal.port1.onmessage = function(){ var f = _filaCeder.shift(); if (f) f(); };
+      _canal.port1.start();
+    }
+    _filaCeder.push(res);
+    _canal.port2.postMessage(0);
+  });
+}
+
+/* ---------- tela fora do DOM (nao depende da aba estar visivel) ---------- */
+var SEM_OFFSCREEN = false;
+function novaTela(w, h){
+  w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+  if (!SEM_OFFSCREEN && typeof OffscreenCanvas !== "undefined"){
+    try { return new OffscreenCanvas(w, h); } catch (e){}
+  }
+  var c = document.createElement("canvas"); c.width = w; c.height = h; return c;
+}
+/* ---------- caminho rapido para pagina digitalizada ----------
+   O scanner grava cada folha como uma foto de ~34 megapixels (7040x4912,
+   600 dpi), comprimida em JPEG e depois em zlib. O pdf.js decodifica esse
+   JPEG em JavaScript, na resolucao cheia: ~1,6 s por pagina so para desenhar.
+   Aqui a foto e tirada de dentro do PDF e aberta pelo decodificador nativo
+   do navegador ja no tamanho final (~0,25 s). Qualquer coisa fora do padrao
+   "uma foto ocupando a pagina" volta para o pdf.js, que continua valendo. */
+async function inflar(bytes){
+  var fluxo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return new Uint8Array(await new Response(fluxo).arrayBuffer());
+}
+function multMat(m1, m2){
+  return [m1[0] * m2[0] + m1[2] * m2[1], m1[1] * m2[0] + m1[3] * m2[1],
+          m1[0] * m2[2] + m1[2] * m2[3], m1[1] * m2[2] + m1[3] * m2[3],
+          m1[0] * m2[4] + m1[2] * m2[5] + m1[4], m1[1] * m2[4] + m1[3] * m2[5] + m1[5]];
+}
+var RAPIDO_OK = typeof DecompressionStream !== "undefined" && typeof createImageBitmap !== "undefined";
+function libDoc(reg){
+  if (!reg.lib){
+    reg.lib = (async function(){
+      var bytes = reg.buf || new Uint8Array(await reg.blob.arrayBuffer());
+      return await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false });
+    })();
+    reg.lib.catch(function(){ reg.semRapido = true; });
+  }
+  return reg.lib;
+}
+function nomeFiltros(dict){
+  var f = dict.lookup(PDFLib.PDFName.of("Filter"));
+  if (!f) return [];
+  if (f instanceof PDFLib.PDFName) return [f.toString()];
+  if (f instanceof PDFLib.PDFArray){
+    var r = [];
+    for (var i = 0; i < f.size(); i++){ var x = f.lookup(i); if (!(x instanceof PDFLib.PDFName)) return null; r.push(x.toString()); }
+    return r;
+  }
+  return null;
+}
+async function bytesDoStream(st){
+  if (!(st instanceof PDFLib.PDFRawStream)) return null;
+  var f = nomeFiltros(st.dict);
+  if (!f || st.dict.has(PDFLib.PDFName.of("DecodeParms"))) return null;
+  if (!f.length) return st.contents;
+  if (f.length === 1 && f[0] === "/FlateDecode") return await inflar(st.contents);
+  return null;
+}
+/* devolve { blob do JPEG, matriz onde a foto e desenhada } ou null */
+async function fotoDaPagina(reg, n){
+  if (!RAPIDO_OK || reg.semRapido || !window.PDFLib) return null;
+  try{
+    var lib = await libDoc(reg);
+    var no = lib.getPage(n - 1).node;
+    var cont = no.Contents(), partes = [];
+    if (cont instanceof PDFLib.PDFArray){ for (var i = 0; i < cont.size(); i++) partes.push(cont.lookup(i)); }
+    else if (cont) partes.push(cont);
+    var texto = "";
+    for (var j = 0; j < partes.length; j++){
+      var b = await bytesDoStream(partes[j]);
+      if (!b) return null;
+      texto += " " + new TextDecoder("latin1").decode(b);
+    }
+    /* so aceita q, Q, cm e um unico Do */
+    var tokens = texto.match(/\/[^\s\/\[\]<>(){}%]+|[+-]?(?:\d+\.?\d*|\.\d+)|[A-Za-z*'"]+|\S/g) || [];
+    var ctm = [1, 0, 0, 1, 0, 0], pilha = [], ops = [], achou = null;
+    for (var k = 0; k < tokens.length; k++){
+      var t = tokens[k];
+      if (/^[+-]?(?:\d|\.\d)/.test(t)){ ops.push(parseFloat(t)); continue; }
+      if (t[0] === "/"){ ops.push(t); continue; }
+      if (t === "q"){ pilha.push(ctm.slice()); ops = []; continue; }
+      if (t === "Q"){ ctm = pilha.pop() || [1, 0, 0, 1, 0, 0]; ops = []; continue; }
+      if (t === "cm" && ops.length === 6 && ops.every(function(x){ return typeof x === "number"; })){ ctm = multMat(ctm, ops); ops = []; continue; }
+      if (t === "Do" && ops.length === 1 && !achou){ achou = { nome: ops[0].slice(1), ctm: ctm.slice() }; ops = []; continue; }
+      return null;
+    }
+    if (!achou) return null;
+    var res = no.Resources();
+    var xo = res && res.lookup(PDFLib.PDFName.of("XObject"));
+    var im = xo && xo.lookup(PDFLib.PDFName.of(achou.nome));
+    if (!(im instanceof PDFLib.PDFRawStream)) return null;
+    var d = im.dict;
+    var sub = d.lookup(PDFLib.PDFName.of("Subtype"));
+    if (!sub || sub.toString() !== "/Image") return null;
+    if (["SMask", "Mask", "Decode", "ImageMask", "DecodeParms"].some(function(x){ return d.has(PDFLib.PDFName.of(x)); })) return null;
+    var f = nomeFiltros(d);
+    var jpeg;
+    if (f && f.length === 1 && f[0] === "/DCTDecode") jpeg = im.contents;
+    else if (f && f.length === 2 && f[0] === "/FlateDecode" && f[1] === "/DCTDecode") jpeg = await inflar(im.contents);
+    else return null;
+    if (jpeg[0] !== 0xFF || jpeg[1] !== 0xD8) return null;
+    return { blob: new Blob([jpeg], { type: "image/jpeg" }), ctm: achou.ctm };
+  } catch (e){ return null; }
+}
+async function desenharRapido(foto, tela, vp, deslocamento){
+  var M = multMat(vp.transform, foto.ctm);
+  if (deslocamento) M = multMat(deslocamento, M);
+  var bw = Math.max(1, Math.round(Math.hypot(M[0], M[1])));
+  var bh = Math.max(1, Math.round(Math.hypot(M[2], M[3])));
+  var bmp = await createImageBitmap(foto.blob, { resizeWidth: bw, resizeHeight: bh, resizeQuality: "high" });
+  var ctx = tela.getContext("2d", { willReadFrequently: true, alpha: false });
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, tela.width, tela.height);
+  /* pixel (px,py) da foto -> quadrado unitario (px/bw, 1-py/bh) -> tela */
+  ctx.setTransform(M[0] / bw, M[1] / bw, -M[2] / bh, -M[3] / bh, M[2] + M[4], M[3] + M[5]);
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bmp, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (bmp.close) bmp.close();
+  return ctx;
+}
+
+/* desenha a pagina; se a tela fora do DOM falhar nesse navegador, cai para a tela comum */
+async function desenharPagina(pagina, larg, alt, vp, deslocamento, fonte){
+  if (fonte && fonte.reg){
+    var foto = await fotoDaPagina(fonte.reg, fonte.n);
+    if (foto){
+      var telaR = novaTela(larg, alt);
+      try{
+        var ctxR = await desenharRapido(foto, telaR, vp, deslocamento);
+        return { tela: telaR, ctx: ctxR };
+      } catch (e){ descartarTela(telaR); /* segue pelo pdf.js */ }
+    }
+  }
+  for (var tentativa = 0; tentativa < 2; tentativa++){
+    var tela = novaTela(larg, alt);
+    var ctx = tela.getContext("2d", { willReadFrequently: true, alpha: false });
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, tela.width, tela.height);
+    try{
+      /* intent "print": no modo normal o pdf.js desenha em pedacos esperando o
+         requestAnimationFrame, que o navegador CONGELA quando a aba nao esta
+         visivel - era por isso que a leitura parava ao sair da pagina */
+      var par = { canvasContext: ctx, viewport: vp, intent: "print" };
+      if (deslocamento) par.transform = deslocamento;
+      await pagina.render(par).promise;
+      return { tela: tela, ctx: ctx };
+    } catch (e){
+      descartarTela(tela);
+      if (SEM_OFFSCREEN || typeof OffscreenCanvas === "undefined") throw e;
+      SEM_OFFSCREEN = true;
+    }
+  }
+  throw new Error("nao foi possivel desenhar a pagina");
+}
+function descartarTela(c){ try{ c.width = 1; c.height = 1; } catch (e){} }
+function telaParaBlob(c, tipo, q){
+  if (c.convertToBlob) return c.convertToBlob({ type: tipo, quality: q });
+  return new Promise(function(res){ c.toBlob(res, tipo, q); });
+}
+
+/* ---------- manter o trabalho vivo com a aba em segundo plano ----------
+   Web Lock + gravacao periodica no IndexedDB: o Chrome/Edge nao congelam
+   nem hibernam a aba enquanto isso estiver ativo. */
+var Vivo = {
+  n: 0, soltar: null, lock: null, bat: null, audio: null,
+  ligar: function(){
+    Vivo.n++;
+    if (Vivo.n > 1) return;
+    try{
+      if (navigator.locks && navigator.locks.request){
+        navigator.locks.request("conferencia-ponto-trabalhando", { mode: "exclusive" }, function(){
+          return new Promise(function(res){ Vivo.soltar = res; });
+        }).catch(function(){});
+      }
+    } catch (e){}
+    Vivo.bat = setInterval(function(){
+      try{ DB.put("batimento", Date.now()); } catch (e){}
+    }, 8000);
+    Vivo.som();
+    Vivo.tela();
+  },
+  /* Chrome e Edge nao congelam nem hibernam uma aba que esta tocando audio.
+     E um tom de 45 Hz quase no zero: nao da para ouvir, mas segura a aba. */
+  som: function(){
+    try{
+      if (!Vivo.audio){
+        Vivo.audio = new Audio("data:audio/wav;base64,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");
+        Vivo.audio.loop = true;
+        Vivo.audio.volume = 1;
+      }
+      var pr = Vivo.audio.play();
+      if (pr && pr.catch) pr.catch(function(){});
+    } catch (e){}
+  },
+  parar_som: function(){ try{ if (Vivo.audio) Vivo.audio.pause(); } catch (e){} },
+  tela: function(){
+    try{
+      if (navigator.wakeLock && !Vivo.lock && document.visibilityState === "visible"){
+        navigator.wakeLock.request("screen").then(function(l){
+          Vivo.lock = l;
+          l.addEventListener("release", function(){ Vivo.lock = null; });
+        }).catch(function(){});
+      }
+    } catch (e){}
+  },
+  zerar: function(){ Vivo.n = 1; Vivo.desligar(); },
+  desligar: function(){
+    Vivo.n = Math.max(0, Vivo.n - 1);
+    if (Vivo.n) return;
+    Vivo.parar_som();
+    if (Vivo.soltar){ Vivo.soltar(); Vivo.soltar = null; }
+    if (Vivo.bat){ clearInterval(Vivo.bat); Vivo.bat = null; }
+    if (Vivo.lock){ try{ Vivo.lock.release(); } catch (e){} Vivo.lock = null; }
+  }
+};
+document.addEventListener("visibilitychange", function(){
+  if (document.visibilityState !== "visible") return;
+  if (Vivo.n){ Vivo.tela(); Vivo.som(); desenharArquivosAgora(); }
+  /* rede de seguranca: se a fila parou por qualquer motivo, retoma sozinha */
+  if (estado.pdfs.some(function(x){ return !x.completo; })) processarFila();
+});
+
+/* ---------- vigia ----------
+   - notebook em repouso: o processador para e nenhum site roda. Quando ele
+     acorda, o relogio pula; o vigia percebe, avisa e a leitura segue de onde
+     estava (o andamento fica salvo a cada pagina).
+   - travou (4 min sem nenhuma pagina nova): reinicia os leitores de OCR e
+     retoma sozinho, sem perder o que ja foi lido. */
+var Vigia = { tique: Date.now(), avanco: Date.now(), leu: false };
+setInterval(function(){
+  var agora = Date.now(), pulo = agora - Vigia.tique;
+  Vigia.tique = agora;
+  var trabalhando = fila.rodando || estado.trabalhando === "assin";
+  if (!trabalhando) return;
+  if (pulo > 150000){
+    msg("O notebook ficou em repouso por cerca de " + Math.round(pulo / 60000) + " min. A leitura continuou de onde tinha parado.");
+    Vigia.avanco = agora;
+    Vigia.acordou = agora;
+    if (Vivo.n){ Vivo.som(); Vivo.tela(); }
+    return;
+  }
+  if (Vigia.leu && agora - Vigia.avanco > 240000){
+    Vigia.avanco = agora;
+    msg("A leitura parou de avançar; reiniciando os leitores e continuando de onde parou...");
+    var eraAssin = estado.trabalhando === "assin";
+    cancelarTudo(true);
+    reiniciarLeitores();
+    if (eraAssin) verificarAssinaturas(); else processarFila();
+  }
+}, 8000);
+
+/* notebook na bateria: o Windows reduz o processador e entra em repouso mais cedo */
+var avisouEnergia = false;
+function avisoEnergia(){
+  if (avisouEnergia || !navigator.getBattery) return;
+  navigator.getBattery().then(function(b){
+    if (b.charging) return;
+    avisouEnergia = true;
+    msg("O notebook está na bateria: na tomada a leitura fica mais rápida e o Windows não entra em repouso tão cedo.");
+  }).catch(function(){});
+}
+
+var NUCLEOS = navigator.hardwareConcurrency || 4;
+var PARALELO_PAG = Math.max(2, Math.min(6, NUCLEOS));
+var PARALELO_ASSIN = Math.max(2, Math.min(4, NUCLEOS - 1));
+
+/* ---------- competência ---------- */
+var MESES = ["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+var RE_MES = MESES.join("|");
+function mkComp(m, a){
+  m = parseInt(m, 10); a = parseInt(a, 10);
+  if (a < 100) a += 2000;
+  if (!(m >= 1 && m <= 12) || !(a >= 2000 && a <= 2100)) return null;
+  return { m: m, a: a };
+}
+function dois(n){ return (n < 10 ? "0" : "") + n; }
+function compTxt(c){ return c ? dois(c.m) + "/" + c.a : ""; }
+function compArq(c){ return c ? dois(c.m) + "-" + c.a : "SEM_COMPETENCIA"; }
+function mesmaComp(a, b){ return !!a && !!b && a.m === b.m && a.a === b.a; }
+
+function parseComp(v){
+  var raw = rawDe(v).trim();
+  if (!raw) return null;
+  var r = raw.match(/^(\d{1,2})\s*[\/\-. ]?\s*(\d{4}|\d{2})$/);
+  if (r) return mkComp(r[1], r[2]);
+  r = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})$/);
+  if (r) return mkComp(r[2], r[3]);
+  for (var i = 0; i < 12; i++){
+    if (raw.indexOf(MESES[i].slice(0, 3)) === 0){
+      var y = raw.match(/(\d{4}|\d{2})\s*$/);
+      if (y) return mkComp(i + 1, y[1]);
+    }
+  }
+  return null;
+}
+
+function detectarComp(raw){
+  if (!raw) return null;
+  var r, c;
+  r = raw.match(/COMPET[A-Z]{0,8}[^0-9A-Z]{0,6}(\d{1,2})\s*[\/\-.]\s*(\d{4})(?![\/\d])/);
+  if (r && (c = mkComp(r[1], r[2]))) return c;
+  r = raw.match(new RegExp("COMPETENCIA[^0-9A-Z]{0,6}(" + RE_MES + ")[^0-9]{0,6}(\\d{4})"));
+  if (r && (c = mkComp(MESES.indexOf(r[1]) + 1, r[2]))) return c;
+  /* período do cartão: vale o mês em que ele fecha (21/07 a 20/08 = 08) */
+  r = raw.match(/(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*\d{2,4})?\s*(?:A|ATE|-|–)\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4}|\d{2})/);
+  if (r && (c = mkComp(r[4], r[5]))) return c;
+  r = raw.match(/(?:\bMES\b|REFERENCIA|PERIODO)[^0-9]{0,15}(\d{1,2})\s*\/\s*(\d{4})(?![\/\d])/);
+  if (r && (c = mkComp(r[1], r[2]))) return c;
+  r = raw.match(new RegExp("\\b(" + RE_MES + ")\\s*(?:DE\\s*|\\/\\s*)?(\\d{4})\\b"));
+  if (r && (c = mkComp(MESES.indexOf(r[1]) + 1, r[2]))) return c;
+  var cont = {}, re = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g, m, melhor = null, max = 0;
+  while ((m = re.exec(raw))){
+    var c2 = mkComp(m[2], m[3]);
+    if (!c2) continue;
+    var k = c2.a * 100 + c2.m;
+    cont[k] = (cont[k] || 0) + 1;
+    if (cont[k] > max){ max = cont[k]; melhor = c2; }
+  }
+  return max >= 5 ? melhor : null;
+}
+
+function detectarCompNome(nome){
+  var raw = rawDe(nome).replace(/\.PDF$/, "");
+  var r = raw.match(/(?:^|\D)(0?[1-9]|1[0-2])[\-_. \/](20\d{2})(?!\d)/);
+  if (r) return mkComp(r[1], r[2]);
+  r = raw.match(/(?:^|\D)(20\d{2})[\-_. ](0[1-9]|1[0-2])(?!\d)/);
+  if (r) return mkComp(r[2], r[1]);
+  return detectarComp(raw);
+}
+
+function parseCompCelula(bruto, formatado){
+  if (typeof bruto === "number" && bruto > 20000 && bruto < 80000){
+    var d = XLSX.SSF.parse_date_code(bruto);
+    if (d) return mkComp(d.m, d.y);
+  }
+  if (bruto instanceof Date) return mkComp(bruto.getMonth() + 1, bruto.getFullYear());
+  return parseComp(bruto) || parseComp(formatado) || detectarComp(rawDe(formatado));
+}
+
+function compAlvo(){ return parseComp($("comp").value); }
+
+/* ---------- memória do navegador (IndexedDB) ---------- */
+var DB = {
+  db: null,
+  abrir: function(){
+    return new Promise(function(res){
+      try{
+        if (!window.indexedDB) return res(null);
+        var r = indexedDB.open("conferencia-cartoes-ponto", 1);
+        r.onupgradeneeded = function(){ r.result.createObjectStore("kv"); };
+        r.onsuccess = function(){ DB.db = r.result; res(DB.db); };
+        r.onerror = function(){ res(null); };
+      } catch (e){ res(null); }
+    });
+  },
+  op: function(modo, fn){
+    return new Promise(function(res){
+      if (!DB.db) return res(undefined);
+      try{
+        var tx = DB.db.transaction("kv", modo);
+        var req = fn(tx.objectStore("kv"));
+        tx.oncomplete = function(){ res(req ? req.result : undefined); };
+        tx.onerror = tx.onabort = function(){ DB.falhou = true; res(undefined); };
+      } catch (e){ DB.falhou = true; res(undefined); }
+    });
+  },
+  put: function(k, v){ return DB.op("readwrite", function(s){ return s.put(v, k); }); },
+  get: function(k){ return DB.op("readonly", function(s){ return s.get(k); }); },
+  limpar: function(){ return DB.op("readwrite", function(s){ return s.clear(); }); }
+};
+
+var tSessao = null;
+function salvarSessao(){
+  clearTimeout(tSessao);
+  tSessao = setTimeout(function(){
+    DB.put("sessao", {
+      comp: $("comp").value, planilhaNome: estado.planilhaNome, aba: estado.aba, col: estado.col,
+      manual: estado.manual, assinManual: estado.assinManual,
+      filtro: estado.filtro, setor: estado.setor, regiao: $("selRegiao").value, grupo: $("selGrupo").value,
+      pdfIds: estado.pdfs.map(function(p){ return p.id; }),
+      verificado: estado.verificado, indistinto: estado.indistinto, verTodos: estado.verTodos
+    });
+  }, 400);
+}
+
+async function salvarProgresso(reg){
+  var total = reg.paginas.length;
+  var c = total ? Math.floor((total - 1) / 100) : -1;
+  if (c >= 0) await DB.put("pdfpag:" + reg.id + ":" + c, reg.paginas.slice(c * 100, (c + 1) * 100));
+  await DB.put("pdfmeta:" + reg.id, {
+    nome: reg.nome, completo: reg.completo, erro: reg.erro, digital: reg.digital,
+    digitalChecado: reg.digitalChecado, total: reg.total, blocos: c + 1, versao: 2
+  });
+}
+
+var tAssin = null;
+function salvarAssin(agora){
+  clearTimeout(tAssin);
+  if (agora) return DB.put("assin", estado.assin);
+  tAssin = setTimeout(function(){ DB.put("assin", estado.assin); }, 800);
+}
+
+/* ---------- planilha ---------- */
+async function lerPlanilha(file, sessao){
+  var buf = await file.arrayBuffer();
+  estado.wb = XLSX.read(buf, { type: "array" });
+  estado.planilhaNome = (sessao && sessao.planilhaNome) || file.name || "planilha";
+  $("rotXls").textContent = estado.planilhaNome;
+  var sel = $("selAba");
+  sel.innerHTML = "";
+  estado.wb.SheetNames.forEach(function(n){
+    var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
+  });
+  $("mapa").hidden = false;
+  var aba = sessao && estado.wb.SheetNames.indexOf(sessao.aba) !== -1 ? sessao.aba : estado.wb.SheetNames[0];
+  usarAba(aba, sessao ? sessao.col : null);
+}
+
+function usarAba(nome, colSalvo){
+  estado.aba = nome;
+  $("selAba").value = nome;
+  var ws = estado.wb.Sheets[nome];
+  var linhas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false, blankrows: false });
+  var brutas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true, blankrows: false });
+  estado.linhas = linhas;
+  estado.brutas = brutas.length === linhas.length ? brutas : linhas;
+
+  var iCab = 0, melhor = -1;
+  for (var i = 0; i < Math.min(linhas.length, 20); i++){
+    var txt = linhas[i].map(normalizar).join(" ");
+    var pontos = 0;
+    if (/MATRIC|CHAPA|REGISTRO/.test(txt)) pontos += 3;
+    if (/NOME|COLABORADOR|FUNCIONARIO|EMPREGADO/.test(txt)) pontos += 3;
+    pontos += linhas[i].filter(function(c){ return String(c).trim() !== ""; }).length * 0.1;
+    if (pontos > melhor){ melhor = pontos; iCab = i; }
+  }
+  estado.linhaCab = iCab;
+  estado.cabecalho = (linhas[iCab] || []).map(function(c, idx){
+    var t = String(c).trim();
+    return t === "" ? "Coluna " + (idx + 1) : t;
+  });
+
+  var n = estado.cabecalho.length;
+  var valido = colSalvo && ["mat","nome","extra","sit","comp"].every(function(k){
+    return typeof colSalvo[k] === "number" && colSalvo[k] < n;
+  });
+  if (valido){
+    estado.col = { mat: colSalvo.mat, nome: colSalvo.nome, extra: colSalvo.extra, sit: colSalvo.sit, comp: colSalvo.comp };
+  } else {
+    estado.col.mat = adivinhar(/MATRIC|CHAPA|REGISTRO|CODIGO|CRACHA/);
+    estado.col.nome = adivinhar(/NOME|COLABORADOR|FUNCIONARIO|EMPREGADO/);
+    estado.col.extra = adivinhar(/GEREN|GESTOR|DEPART|DEPTO|SETOR|AREA|CENTRO|DISCIPLINA|ENCARREG/);
+    estado.col.sit = adivinhar(/SITUACAO|STATUS|PENDENC|PENDENTE|ENTREGU|ASSINAD|CONFERID|POSTAD|RECEBID/);
+    estado.col.comp = adivinhar(/COMPET|MES REF|REFERENCIA|PERIODO/);
+    if (estado.col.nome < 0) estado.col.nome = estado.col.mat >= 0 ? estado.col.mat + 1 : 0;
+  }
+  preencherSelects();
+  montarPessoas();
+}
+
+function adivinhar(re){
+  for (var i = 0; i < estado.cabecalho.length; i++){
+    if (re.test(normalizar(estado.cabecalho[i]))) return i;
+  }
+  return -1;
+}
+
+function interpretarSituacao(v){
+  var t = normalizar(v);
+  if (!t) return null;
+  if (/PEND|FALTA|AGUARD|ABERTO|NAO |^NAO$|^N$/.test(t)) return "pendente";
+  if (/OK|SIM|^S$|ENTREG|ASSIN|CONFER|POSTAD|RECEB|DEVOLV|FEITO|CONCLU/.test(t)) return "ok";
+  return null;
+}
+
+function preencherSelects(){
+  [["selMat","mat",false],["selNome","nome",false],["selExtra","extra",true],["selSit","sit",true],["selComp","comp",true]].forEach(function(cfg){
+    var sel = $(cfg[0]);
+    sel.innerHTML = "";
+    if (cfg[2]){
+      var vazio = document.createElement("option");
+      vazio.value = "-1"; vazio.textContent = "— nenhuma —";
+      sel.appendChild(vazio);
+    }
+    estado.cabecalho.forEach(function(h, i){
+      var o = document.createElement("option"); o.value = String(i); o.textContent = h; sel.appendChild(o);
+    });
+    sel.value = String(estado.col[cfg[1]]);
+  });
+}
+
+function montarPessoas(){
+  var todas = [], c = estado.col;
+  for (var i = estado.linhaCab + 1; i < estado.linhas.length; i++){
+    var l = estado.linhas[i], b = estado.brutas[i] || l;
+    var mat = c.mat >= 0 ? String(l[c.mat] || "").trim() : "";
+    var nome = c.nome >= 0 ? String(l[c.nome] || "").trim() : "";
+    if (!mat && !nome) continue;
+    if (normalizar(nome) === "NOME" || normalizar(mat) === "MATRICULA") continue;
+    var digitos = soDigitos(mat), nomeNorm = normalizar(nome);
+    var sitTxt = c.sit >= 0 ? String(l[c.sit] || "").trim() : "";
+    todas.push({
+      id: "p" + i, matricula: mat, nome: nome,
+      extra: c.extra >= 0 ? String(l[c.extra] || "").trim() : "",
+      digitos: digitos, nomeNorm: nomeNorm,
+      chave: digitos ? "m" + digitos : "n" + nomeNorm,
+      sitTexto: sitTxt, situacao: interpretarSituacao(sitTxt),
+      comp: c.comp >= 0 ? parseCompCelula(b[c.comp], l[c.comp]) : null
+    });
+  }
+  estado.pessoasTodas = todas;
+  estado.versaoPessoas++;
+  filtrarPessoas();
+  desenhar();
+  salvarSessao();
+}
+
+function filtrarPessoas(){
+  var alvo = compAlvo();
+  var lista = estado.pessoasTodas;
+  if (estado.col.comp >= 0 && alvo){
+    lista = lista.filter(function(p){ return mesmaComp(p.comp, alvo); });
+  }
+  var vistos = new Set();
+  estado.pessoas = lista.filter(function(p){
+    if (vistos.has(p.chave)) return false;
+    vistos.add(p.chave); return true;
+  });
+}
+
+/* ---------- leitura dos PDFs ---------- */
+var LISTA_CARTAO = ["CARTAO DE PONTO","CARTAO PONTO","ESPELHO DE PONTO","ESPELHO PONTO","FOLHA DE PONTO",
+  "REGISTRO DE PONTO","CONTROLE DE PONTO","CONTROLE DE FREQUENCIA","FOLHA DE FREQUENCIA",
+  "APURACAO DE PONTO","REGISTRO DE FREQUENCIA","PONTO ELETRONICO","MARCACOES DE PONTO"];
+var LISTA_OUTRO = ["RECIBO DE PAGAMENTO","DEMONSTRATIVO DE PAGAMENTO","HOLERITE","CONTRA CHEQUE","CONTRACHEQUE",
+  "SALARIO BASE","BASE CALC","VALOR LIQUIDO","TOTAL DE VENCIMENTOS","TOTAL DE DESCONTOS","TERMO DE RESCISAO",
+  "TRCT","ATESTADO DE SAUDE","ATESTADO MEDICO","AVISO PREVIO","CONTRATO DE TRABALHO","RECIBO DE ENTREGA",
+  "FICHA DE REGISTRO","SEGURO DESEMPREGO","EXTRATO","GUIA DE RECOLHIMENTO","PASSAGEM","BILHETE",
+  "CARTAO DE EMBARQUE","FICHA DE EPI","ORDEM DE SERVICO","EXAME MEDICO","EXAME DEMISSIONAL","EXAME ADMISSIONAL",
+  "RECIBO DE FERIAS","AVISO DE FERIAS","COMPROVANTE DE PAGAMENTO","COMPROVANTE DE CREDITO","CHECKLIST",
+  "KIT DEMISSIONAL","HOMOLOGACAO","COMUNICACAO DE DISPENSA","NADA CONSTA","ENTREGA DE EPI","PEDIDO DE EXAMES",
+  "ATESTADO DE SAUDE OCUPACIONAL","CONVOCACAO","RESTRICAO PARA CONTRATAR","ITENS VINCULADOS","DOCUSIGN",
+  "CERTIFICADO DE CONCLUSAO","SIGNATURE DISCLOSURE","ELECTRONIC RECORD","SEGURO DESEMPREGO"];
+var RE_ROTULO_ID = /MATRICULA|\bCHAPA\b|\bCPF\b|\bPIS\b|ADMISSAO|CRACHA/;
+var RE_RESUMO = /RESUMO|TOTAIS|\bTOTAL\b|BANCO DE HORAS|HORAS EXTRAS|HORA EXTRA|ADICIONAL NOTURNO|\bDSR\b|FALTAS|ATRASOS|SALDO|APURACAO|\bHE\b|EXTRA 50|EXTRA 60|EXTRA 100|HORAS NORMAIS|\bHORAS\b/;
+
+function classificar(texto, raw, temTexto){
+  if (!temTexto) return "vazio";
+  var forte = LISTA_CARTAO.some(function(k){ return texto.indexOf(k) !== -1; });
+  var outros = LISTA_OUTRO.filter(function(k){ return texto.indexOf(k) !== -1; }).length;
+  var horas = (raw.match(/\b\d{1,2}:\d{2}\b/g) || []).length;
+  var dias = (texto.match(/\b(SEG|TER|QUA|QUI|SEX|SAB|DOM)\b/g) || []).length;
+  var entradaSaida = texto.indexOf("ENTRADA") !== -1 && texto.indexOf("SAIDA") !== -1;
+  var apoio = /BATIDAS|HORAS PREVISTAS|HORAS TRABALHADAS|DSR SEMANAL|MARCACO/.test(texto);
+  var corpo = horas >= 4 || dias >= 5 || entradaSaida || apoio;
+  var pontos = (forte && corpo ? 6 : 0) + (entradaSaida ? 2 : 0) + (horas >= 12 ? 3 : horas >= 4 ? 1 : 0) +
+    (dias >= 5 ? 2 : 0) + (apoio ? 2 : 0);
+  var temId = RE_ROTULO_ID.test(texto);
+  if (pontos >= 6 && pontos > outros * 4) return "cartao";
+  if (outros === 0 && !temId && RE_RESUMO.test(texto)) return "resumo";
+  if (outros === 0 && texto.length < 180) return "vazio";
+  if (pontos >= 5 && outros === 0) return "cartao";
+  return "outro";
+}
+
+function novoRegistro(id, nome, blob, meta){
+  var nn = normalizar(nome);
+  return {
+    id: id, nome: nome, nomeNorm: nn, numsNome: extrairNums(nn), compNome: detectarCompNome(nome),
+    blob: blob, paginas: meta && meta.paginas ? meta.paginas : [],
+    completo: !!(meta && meta.completo), erro: (meta && meta.erro) || "",
+    digital: !!(meta && meta.digital), digitalChecado: !!(meta && meta.digitalChecado),
+    total: (meta && meta.total) || 0, doc: null
+  };
+}
+
+async function temAssinaturaDigital(blob){
+  try{
+    var n = blob.size, pedacos = [blob.slice(0, Math.min(n, 4000000))];
+    if (n > 4000000) pedacos.push(blob.slice(Math.max(4000000, n - 4000000), n));
+    for (var i = 0; i < pedacos.length; i++){
+      var s = new TextDecoder("latin1").decode(new Uint8Array(await pedacos[i].arrayBuffer()));
+      if (/\/ByteRange|adbe\.pkcs7|ETSI\.CAdES|\/Type\s*\/Sig\b/.test(s)) return true;
+    }
+  } catch (e){}
+  return false;
+}
+
+var docsAbertos = [];
+var MAX_DOCS = 4;
+async function abrirDoc(reg){
+  var i = docsAbertos.indexOf(reg);
+  if (reg.doc && i !== -1){ docsAbertos.splice(i, 1); docsAbertos.push(reg); return reg.doc; }
+  /* varias paginas podem pedir o mesmo PDF ao mesmo tempo: abre uma vez so */
+  if (reg.abrindo) return reg.abrindo;
+  reg.abrindo = (async function(){
+    var dados;
+    if (reg.buf){
+      dados = reg.buf.slice(0);
+    } else {
+      var u8 = new Uint8Array(await reg.blob.arrayBuffer());
+      /* guarda o arquivo em memoria so se for pequeno, para nao estourar a RAM */
+      if (u8.length <= 40 * 1024 * 1024){ reg.buf = u8; dados = u8.slice(0); }
+      else dados = u8;
+    }
+    /* o pdf.js confisca o buffer que recebe, por isso vai sempre uma copia */
+    reg.doc = await pdfjsLib.getDocument({ data: dados, disableFontFace: true }).promise;
+    docsAbertos.push(reg);
+    while (docsAbertos.length > MAX_DOCS){
+      var velho = docsAbertos.shift();
+      if (velho === reg) { docsAbertos.push(velho); break; }
+      if (velho.doc){ try{ velho.doc.destroy(); } catch (e){} velho.doc = null; }
+      velho.buf = null; velho.lib = null;
+    }
+    reg.abrindo = null;
+    return reg.doc;
+  })();
+  try { return await reg.abrindo; }
+  catch (e){ reg.abrindo = null; throw e; }
+}
+
+/* ---------- OCR para PDF digitalizado ---------- */
+var URL_TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+var OCR = {
+  falhou: false, libCarregando: null,
+  /* teto pela maquina: nucleos do processador e memoria */
+  limite: Math.max(1, Math.min(NUCLEOS - 1, (navigator.deviceMemory || 4) >= 8 ? 6 : (navigator.deviceMemory || 4) >= 4 ? 4 : 2)),
+  max: 2, ger: 0,
+  criados: 0, livres: [], espera: []
+};
+function carregarScript(src){
+  return new Promise(function(res, rej){
+    var s = document.createElement("script");
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+function carregarLibOCR(){
+  if (!OCR.libCarregando){
+    OCR.libCarregando = (async function(){
+      progresso(0, 1, "Carregando leitor de imagem (OCR)...");
+      if (!window.Tesseract) await carregarScript(URL_TESSERACT);
+    })();
+  }
+  return OCR.libCarregando;
+}
+/* varios leitores em paralelo: paginas digitalizadas sao o gargalo do app */
+async function criarLeitor(){
+  await carregarLibOCR();
+  var w = await Tesseract.createWorker("por", 1, window.OCR_OPCOES || {});
+  w._ger = OCR.ger;
+  return w;
+}
+async function pegarOCR(){
+  if (OCR.falhou) return null;
+  if (OCR.livres.length) return OCR.livres.pop();
+  if (OCR.criados < OCR.max){
+    OCR.criados++;
+    try{ return await criarLeitor(); }
+    catch (e){
+      OCR.criados--;
+      if (!OCR.criados && !OCR.livres.length) OCR.falhou = true;
+      return null;
+    }
+  }
+  return await new Promise(function(res){ OCR.espera.push(res); });
+}
+function soltarOCR(w){
+  if (!w) return;
+  /* leitor de antes de um reinicio, ou sobrando depois que o app reduziu o ritmo */
+  if (w._ger !== OCR.ger || OCR.criados > OCR.max){
+    if (w._ger === OCR.ger) OCR.criados--;
+    try{ w.terminate(); } catch (e){}
+    return;
+  }
+  var f = OCR.espera.shift();
+  if (f) f(w); else OCR.livres.push(w);
+}
+/* o app subiu o ritmo: abre leitor novo para quem esta esperando */
+async function abrirVagas(){
+  while (OCR.espera.length && OCR.criados < OCR.max){
+    OCR.criados++;
+    try{ soltarOCR(await criarLeitor()); }
+    catch (e){ OCR.criados--; break; }
+  }
+}
+/* joga fora todos os leitores e recomeca do zero (usado quando algo travou) */
+function reiniciarLeitores(){
+  OCR.ger++;
+  OCR.livres.forEach(function(w){ try{ w.terminate(); } catch (e){} });
+  OCR.livres = []; OCR.espera = []; OCR.criados = 0; OCR.falhou = false;
+}
+
+/* ---------- o proprio app acha a velocidade ideal da maquina ----------
+   Comeca com poucos leitores de OCR e vai somando um de cada vez enquanto
+   o numero de paginas por minuto sobe. Quando parar de ganhar, fixa no
+   melhor nivel e guarda para a proxima vez neste computador. */
+var Ajuste = { desde: 0, cont: 0, melhor: 0, travado: false, aquecer: true, taxa: 0 };
+(function(){
+  try{
+    var salvo = parseInt(localStorage.getItem("conferencia-ocr-nivel"), 10);
+    if (salvo >= 1) OCR.max = Math.min(OCR.limite, salvo);
+  } catch (e){}
+  OCR.max = Math.min(OCR.max, OCR.limite);
+})();
+function contarPaginaOCR(){
+  var a = Ajuste, agora = Date.now();
+  if (!a.desde){ a.desde = agora; a.cont = 0; return; }
+  a.cont++;
+  if (a.cont < 4 * OCR.max) return;
+  var taxa = a.cont * 60000 / Math.max(1, agora - a.desde);
+  a.taxa = taxa; a.desde = agora; a.cont = 0;
+  /* a primeira medida depois de mudar inclui o tempo de abrir o leitor novo */
+  if (a.aquecer){ a.aquecer = false; return; }
+  if (a.travado) return;
+  if (taxa > a.melhor * 1.08){
+    a.melhor = taxa;
+    if (OCR.max < OCR.limite){ OCR.max++; a.aquecer = true; abrirVagas(); return; }
+  } else if (taxa < a.melhor * 0.92 && OCR.max > 1){
+    OCR.max--;
+  }
+  a.travado = true;
+  try{ localStorage.setItem("conferencia-ocr-nivel", String(OCR.max)); } catch (e){}
+}
+
+async function reconhecer(w, pg, largura, psm){
+  var vp1 = pg.getViewport({ scale: 1 });
+  var vp = pg.getViewport({ scale: largura / vp1.width });
+  var alvo = await desenharPagina(pg, vp.width, vp.height, vp, null);
+  var tela = alvo.tela;
+  var img = tela.convertToBlob ? await telaParaBlob(tela, "image/png") : tela;
+  await w.setParameters({ tessedit_pageseg_mode: psm });
+  var r = await w.recognize(img);
+  descartarTela(tela);
+  return { dados: r.data, vp: vp };
+}
+
+var RE_DICA_CARTAO = /PONTO|ESPELHO|FREQUENC|BATIDA|MARCAC|JORNADA|RESUMO|HORAS|PREVISTA|TRABALHADA/;
+async function ocrPagina(pg, unica, fonte){
+  var w = await pegarOCR();
+  if (!w) return null;
+  try{
+    var r = await ocrComLeitor(w, pg, unica, fonte);
+    contarPaginaOCR();
+    return r;
+  } finally { soltarOCR(w); }
+}
+/* O OCR nao precisa ler a tabela de batidas (o miolo da folha, que e o
+   texto mais denso e o mais caro de ler). So interessa:
+     - o topo: nome, matricula, competencia e titulo "ESPELHO DE PONTO";
+     - a parte de baixo: onde fica "Assinatura colaborador".
+   A folha e desenhada uma vez so e as duas faixas saem da mesma imagem. */
+/* Medido com o tesseract.js (o mesmo do navegador) em cartoes reais:
+   folha inteira ~5 s; topo + canto de baixo a direita ~1,9 s.
+   - topo (24%): nome, matricula, "ESPELHO DE PONTO", competencia;
+     se a LOCALIZACAO for longa e empurrar a competencia para baixo,
+     le mais uma tira logo abaixo;
+   - baixo a direita: e onde fica "Assinatura colaborador". */
+var FAIXA_TOPO = 0.24, FAIXA_EXTRA = [0.22, 0.34], FAIXA_BAIXO = 0.68, FAIXA_BAIXO_X = 0.40;
+/* pagina com cara de primeira folha de cartao (a folha de totais "Outros" nao precisa do rodape) */
+var RE_TOPO_CARTAO = /ESPELHO|MATRICULA|BATIDA|FREQUENC|MARCAC|JORNADA|CARTAO DE PONTO|FOLHA DE PONTO/;
+/* Recorta a faixa numa imagem propria em vez de usar o "rectangle" do
+   tesseract.js: na 5.1.1 um retangulo com a largura inteira da imagem,
+   comecando no topo, devolve lixo ("o o O") - era assim que o nome e a
+   matricula do cabecalho se perdiam. Recortar tambem e mais leve: so a
+   faixa vai para o OCR, nao a folha inteira. */
+async function recorteFaixa(alvo, x, y, w, h){
+  var t = novaTela(w, h);
+  var c = t.getContext("2d", { alpha: false });
+  c.putImageData(alvo.ctx.getImageData(x, y, w, h), 0, 0);
+  var b = await telaParaBlob(t, "image/png");
+  descartarTela(t);
+  return b;
+}
+async function ocrComLeitor(w, pg, unica, fonte){
+  var vp1 = pg.getViewport({ scale: 1 });
+  var vp = pg.getViewport({ scale: 1900 / vp1.width });
+  var alvo = await desenharPagina(pg, vp.width, vp.height, vp, null, fonte);
+  var W = alvo.tela.width, H = alvo.tela.height;
+  try{
+    await w.setParameters({ tessedit_pageseg_mode: "4" });
+    var topo = await w.recognize(await recorteFaixa(alvo, 0, 0, W, Math.round(H * FAIXA_TOPO)));
+    var txt = topo.data.text || "";
+    var norm = normalizar(txt);
+    var palavras = [];
+    var ehCartao = RE_TOPO_CARTAO.test(norm);
+    if (ehCartao && !detectarComp(rawDe(txt))){
+      var e0 = Math.round(H * FAIXA_EXTRA[0]), e1 = Math.round(H * FAIXA_EXTRA[1]);
+      var extra = await w.recognize(await recorteFaixa(alvo, 0, e0, W, e1 - e0));
+      txt += "\n" + (extra.data.text || "");
+    }
+    /* documento que nao e cartao para aqui: so o topo foi lido */
+    if (ehCartao || norm.length < 60){
+      var y0 = Math.round(H * FAIXA_BAIXO), x0 = Math.round(W * FAIXA_BAIXO_X);
+      var baixo = await w.recognize(await recorteFaixa(alvo, x0, y0, W - x0, H - y0));
+      txt += "\n" + (baixo.data.text || "");
+      /* coordenadas do recorte -> coordenadas da folha */
+      palavras = (baixo.data.words || []).map(function(p){
+        return { text: p.text, bbox: { x0: p.bbox.x0 + x0, y0: p.bbox.y0 + y0, x1: p.bbox.x1 + x0, y1: p.bbox.y1 + y0 } };
+      });
+    }
+    return montarOcr({ dados: { words: palavras }, vp: vp }, txt);
+  } finally {
+    descartarTela(alvo.tela);
+  }
+}
+function montarOcr(final, txt){
+  var palavras = final.dados.words || [];
+  var rotulo = null;
+  for (var i = 0; i < palavras.length; i++){
+    var t = normalizar(palavras[i].text);
+    /* a rubrica costuma passar por cima do rotulo e o OCR le coisas como
+       "ASSINAPSFOIABORADER": basta comecar com ASSIN */
+    if (!/^ASSIN|ASSINAT/.test(t)) continue;
+    var junto = normalizar(palavras.slice(i, i + 3).map(function(x){ return x.text; }).join(" "));
+    var peso = /COLABORADOR|EMPREGADO|FUNCIONARIO|TRABALHADOR|ABORAD|OLABOR/.test(junto) ? 0 : /GESTOR|GERENTE|RESPONSAVEL|EMPREGADOR|EMPRESA/.test(junto) ? 2 : 1;
+    if (!rotulo || peso < rotulo.peso){
+      var bb = palavras[i].bbox;
+      var pt = final.vp.convertToPdfPoint(bb.x0, bb.y1);
+      rotulo = { x: pt[0], y: pt[1], largura: 150, peso: peso };
+    }
+  }
+  return { bruto: txt, rotulo: rotulo };
+}
+
+async function lerPagina(doc, p, reg){
+  var fonte = reg ? { reg: reg, n: p } : null;
+  var pg = await doc.getPage(p);
+  var tc = await pg.getTextContent();
+  var bruto = tc.items.map(function(it){ return it.str; }).join(" ");
+  var viaOcr = false, rotuloOcr = null;
+  if (bruto.trim().length <= 30){
+    try{
+      var o = await ocrPagina(pg, doc.numPages === 1, fonte);
+      if (o){ bruto = o.bruto; rotuloOcr = o.rotulo; viaOcr = true; }
+    } catch (e){}
+  }
+  var rotulo = null;
+  for (var k = 0; k < tc.items.length; k++){
+    var txtItem = normalizar(tc.items[k].str);
+    if (txtItem.indexOf("ASSINATURA") === -1) continue;
+    var peso = /COLABORADOR|EMPREGADO|FUNCIONARIO/.test(txtItem) ? 0 : /GESTOR|GERENTE|RESPONSAVEL|ENCARREG|EMPREGADOR|EMPRESA/.test(txtItem) ? 2 : 1;
+    if (!rotulo || peso < rotulo.peso){
+      rotulo = { x: tc.items[k].transform[4], y: tc.items[k].transform[5], largura: tc.items[k].width || 150, peso: peso };
+    }
+  }
+  if (viaOcr) rotulo = rotuloOcr;
+  pg.cleanup();
+  var texto = normalizar(bruto), raw = rawDe(bruto);
+  var temTexto = bruto.trim().length > 30;
+  var tipo = classificar(texto, raw, temTexto);
+  return {
+    n: p, texto: tipo === "cartao" ? texto : "", nums: tipo === "cartao" ? extrairNums(texto) : [],
+    comp: tipo === "cartao" || tipo === "resumo" ? detectarComp(raw) : null,
+    tipo: tipo, temRotuloId: RE_ROTULO_ID.test(texto), rotulo: rotulo, temTexto: temTexto, ocr: viaOcr
+  };
+}
+
+async function processarPdf(reg, g){
+  try{
+    if (!reg.digitalChecado){ reg.digital = await temAssinaturaDigital(reg.blob); reg.digitalChecado = true; }
+    var doc = await abrirDoc(reg);
+    reg.total = doc.numPages;
+    /* le varias paginas ao mesmo tempo: o pdf.js decodifica numa thread propria
+       enquanto o texto da pagina anterior ja esta sendo processado aqui */
+    var p = reg.paginas.length + 1;
+    while (p <= doc.numPages){
+      if (!valendo(g)){ await salvarProgresso(reg); return; }
+      if (!reg.doc) doc = await abrirDoc(reg);
+      var lote = [];
+      for (var k = 0; k < PARALELO_PAG && p + k <= doc.numPages; k++) lote.push(lerPagina(doc, p + k, reg));
+      var res = await Promise.all(lote.map(function(pr){
+        return pr.then(function(v){ return { ok: true, v: v }; }, function(e){ return { ok: false, e: e }; });
+      }));
+      if (!valendo(g)) return;
+      var falhou = null, temOcr = false;
+      for (var j = 0; j < res.length; j++){
+        if (!res[j].ok){ falhou = res[j].e; break; }
+        reg.paginas.push(res[j].v);
+        Vigia.avanco = Date.now(); Vigia.leu = true;
+        if (res[j].v.ocr) temOcr = true;
+      }
+      p = reg.paginas.length + 1;
+      if (falhou) throw falhou;
+      if (estado.pdfs.length > 1){
+        var prontos = 0;
+        for (var q = 0; q < estado.pdfs.length; q++) if (estado.pdfs[q].completo) prontos++;
+        progresso(prontos, estado.pdfs.length, "Lendo arquivos · " + prontos + " de " + estado.pdfs.length +
+          " prontos" + (temOcr ? " (por imagem)" : "") + tempoQueFalta(prontos, estado.pdfs.length, Tarefa.t0) +
+          (Ajuste.taxa ? " · " + Math.round(Ajuste.taxa) + " pág/min com " + OCR.max + " leitor(es)" : ""));
+      } else {
+        progresso(p - 1, doc.numPages, "Lendo " + reg.nome + " · página " + (p - 1) + " de " + doc.numPages +
+          (temOcr ? " (imagem)" : "") + tempoQueFalta(p - 1, doc.numPages, Tarefa.t0));
+      }
+      if (temOcr || (p - 1) % 25 < PARALELO_PAG){ await salvarProgresso(reg); desenharArquivos(); agendarDesenho(); }
+      await cederVez();
+    }
+    reg.completo = true;
+    reg.lib = null;
+    if (!reg.paginas.some(function(x){ return x.temTexto; })) reg.erro = OCR.falhou ? "digitalizado · OCR indisponível" : "sem texto";
+  } catch (e){
+    reg.completo = true;
+    reg.erro = "não foi possível ler";
+  }
+  await salvarProgresso(reg);
+}
+
+var fila = { rodando: false };
+async function processarFila(){
+  if (fila.rodando) return;
+  fila.rodando = true;
+  var g = Tarefa.geracao;
+  Tarefa.t0 = Date.now();
+  Vivo.ligar();
+  atualizarBotoes(estado.ultimo);
+  try{
+    /* com um cartao por arquivo, o ganho esta em ler varios arquivos ao mesmo
+       tempo: cada um ocupa um leitor de OCR diferente */
+    /* arquivos abertos ao mesmo tempo = teto de leitores: sempre ha pagina
+       esperando quando o app decide subir o ritmo */
+    var porVez = Math.max(1, OCR.limite);
+    Vigia.avanco = Date.now(); Vigia.leu = false;
+    avisoEnergia();
+    var equipe = [];
+    for (var t = 0; t < porVez; t++){
+      equipe.push((async function(){
+        while (valendo(g)){
+          var reg = estado.pdfs.find(function(x){ return !x.completo && !x.processando; });
+          if (!reg) break;
+          reg.processando = "g" + g;
+          desenharArquivos();
+          try { await processarPdf(reg, g); }
+          finally { if (reg.processando === "g" + g) reg.processando = false; }
+          desenharArquivos();
+          agendarDesenho();
+        }
+      })());
+    }
+    await Promise.all(equipe);
+  } finally {
+    if (valendo(g)){
+      fila.rodando = false;
+      Vivo.desligar();
+      progresso(null);
+      desenharArquivos();
+      desenhar();
+    }
+  }
+}
+
+async function adicionarPdfs(files){
+  var semEspaco = false;
+  for (var i = 0; i < files.length; i++){
+    var f = files[i];
+    var id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    var reg = novoRegistro(id, f.name, f, null);
+    estado.pdfs.push(reg);
+    DB.falhou = false;
+    await DB.put("pdfarq:" + id, f);
+    if (DB.falhou) semEspaco = true;
+    await salvarProgresso(reg);
+  }
+  salvarSessao();
+  desenharArquivos();
+  if (semEspaco) msg("Sem espaço no navegador para guardar todos os PDFs. Se a página fechar, alguns precisarão ser carregados de novo.");
+  processarFila();
+}
+
+/* ---------- cruzamento ---------- */
+function adicionar(mapa, chave, ref){
+  var l = mapa.get(chave);
+  if (!l){ mapa.set(chave, [ref]); return; }
+  if (l[l.length - 1] !== ref) l.push(ref);
+}
+function intersecao(listas){
+  if (!listas.length || listas.some(function(l){ return !l; })) return [];
+  listas = listas.slice().sort(function(a, b){ return a.length - b.length; });
+  var res = listas[0];
+  for (var i = 1; i < listas.length; i++){
+    var s = new Set(listas[i]);
+    res = res.filter(function(x){ return s.has(x); });
+  }
+  return res;
+}
+function temPalavra(texto, w){ return (" " + texto + " ").indexOf(" " + w + " ") !== -1; }
+function nomeNaPagina(nome, texto){
+  if (texto.indexOf(nome) !== -1) return true;
+  var ws = nome.split(" ").filter(function(w){ return w.length > 2; });
+  return ws.length >= 2 && temPalavra(texto, ws[0]) && temPalavra(texto, ws[ws.length - 1]);
+}
+
+/* ---------- quem e o dono do cartao, segundo o proprio cabecalho ----------
+   O cartao traz "NOME / MATRICULA 55950 / ... / DEPARTAMENTO <nome do gestor>".
+   Antes o app procurava o nome na pagina inteira: "JUNIOR" do nome do
+   colaborador + "SILVA" do nome do gestor no campo departamento bastavam
+   para entregar o cartao do Mario Junior ao Junior Mota da Silva.
+   Agora o nome so vale se estiver no cabecalho, e a matricula impressa
+   no cartao tem a palavra final. */
+var PARADAS_CAB = new Set(["CEP","ENDERECO","CNPJ","ELECNOR","BRASIL","LTDA","EIRELI","ME","EPP",
+  "NOME","COLABORADOR","FUNCIONARIO","EMPREGADO","TRABALHADOR","EMPRESA","EMPREGADOR","RAZAO","SOCIAL",
+  "ESPELHO","CARTAO","PONTO","FOLHA","REGISTRO","CONTROLE","FREQUENCIA","PERIODO","COMPETENCIA","DATA","EMISSAO"]);
+function identidadeCartao(texto){
+  texto = texto || "";
+  var m = /\b(?:MATRICULA|CHAPA)\s*(?:N\s+|NO\s+)?0*(\d{3,})/.exec(texto);
+  var mat = m ? m[1] : "";
+  var pos = m ? m.index : texto.search(/\bMATRICULA/);
+  var cab = "";
+  if (pos > 0){
+    var ws = texto.slice(0, pos).trim().split(" "), pegos = [];
+    for (var i = ws.length - 1; i >= 0 && pegos.length < 8; i--){
+      var w = ws[i];
+      if (!/^[A-Z]+$/.test(w) || PARADAS_CAB.has(w)) break;
+      pegos.unshift(w);
+    }
+    if (pegos.length >= 2) cab = pegos.join(" ");
+  }
+  return { mat: mat, cab: cab };
+}
+/* tolera um digito trocado, sobrando ou faltando (erro comum de OCR) */
+function quaseIgual(a, b){
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length === b.length){
+    var dif = 0;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i] && ++dif > 1) return false;
+    return true;
+  }
+  if (Math.abs(a.length - b.length) !== 1) return false;
+  var lg = a.length > b.length ? a : b, ct = a.length > b.length ? b : a;
+  for (var j = 0; j < lg.length; j++) if (lg.slice(0, j) + lg.slice(j + 1) === ct) return true;
+  return false;
+}
+function nomeNoCabecalho(cab, nomeNorm){
+  if (!cab || !nomeNorm) return false;
+  if (cab.indexOf(nomeNorm) !== -1) return true;
+  var ws = nomeNorm.split(" ").filter(function(w){ return w.length > 2; });
+  return ws.length >= 2 && ws.every(function(w){ return temPalavra(cab, w); });
+}
+
+var indice = { chave: "", resultado: null };
+function obterIndice(){
+  var k = estado.versaoPessoas + "|" + estado.pdfs.map(function(f){
+    return f.id + ":" + f.paginas.length + ":" + (f.completo ? 1 : 0);
+  }).join(",");
+  if (indice.chave !== k) indice = { chave: k, resultado: construirIndice() };
+  return indice.resultado;
+}
+
+function construirIndice(){
+  var refs = [], porNum = new Map(), porPal = new Map(), porMat = new Map(), outrosDocs = 0;
+  estado.pdfs.forEach(function(pdf){
+    pdf.paginas.forEach(function(pg){
+      if (pg.tipo === "outro") outrosDocs++;
+      if (pg.tipo !== "cartao") return;
+      var r = refs.length;
+      var idt = identidadeCartao(pg.texto);
+      refs.push({ pdf: pdf, pg: pg, idt: idt });
+      if (idt.mat) adicionar(porMat, idt.mat, r);
+      pg.nums.forEach(function(n){ adicionar(porNum, n, r); });
+      new Set(pg.texto.split(" ")).forEach(function(w){ if (w.length > 2 && /[A-Z]/.test(w)) adicionar(porPal, w, r); });
+    });
+  });
+
+  var unicas = new Map();
+  estado.pessoasTodas.forEach(function(p){ if (!unicas.has(p.chave)) unicas.set(p.chave, p); });
+
+  /* número que aparece em boa parte dos cartões (ano, CNPJ, código da obra) não identifica ninguém */
+  var comuns = new Set(), corte = Math.max(5, refs.length * 0.3);
+  porNum.forEach(function(l, n){ if (l.length > corte) comuns.add(n); });
+
+  /* cartao com matricula impressa so pode ir para quem tem essa matricula */
+  function compativel(r, p){
+    var m = refs[r].idt.mat;
+    return !m || !p.digitos || quaseIgual(m, p.digitos);
+  }
+  /* onde procurar o nome: no cabecalho, se deu para separar; senao na pagina */
+  function nomeBate(r, p){
+    var cab = refs[r].idt.cab;
+    return cab ? nomeNoCabecalho(cab, p.nomeNorm) : refs[r].pg.texto.indexOf(p.nomeNorm) !== -1;
+  }
+
+  var reivind = new Map(), via = {};
+  unicas.forEach(function(p){
+    var lista = null;
+    if (p.digitos.length >= 3 && porMat.has(p.digitos)){
+      lista = porMat.get(p.digitos); via[p.chave] = "matrícula";
+    } else if (p.digitos.length >= 3 && porNum.has(p.digitos) && !comuns.has(p.digitos)){
+      lista = porNum.get(p.digitos).filter(function(r){ return compativel(r, p); });
+      if (lista.length) via[p.chave] = "matrícula"; else lista = null;
+    }
+    if (!lista && p.nomeNorm.length >= 5){
+      var ws = p.nomeNorm.split(" ").filter(function(w){ return w.length > 2 && /[A-Z]/.test(w); });
+      if (ws.length){
+        lista = intersecao(ws.map(function(w){ return porPal.get(w); })).filter(function(r){
+          return compativel(r, p) && nomeBate(r, p);
+        });
+        if (lista.length) via[p.chave] = "nome"; else lista = null;
+      }
+    }
+    if (lista) lista.forEach(function(r){
+      var s = reivind.get(r);
+      if (!s){ s = new Set(); reivind.set(r, s); }
+      s.add(p.chave);
+    });
+  });
+
+  var donoRef = new Map();
+  reivind.forEach(function(s, r){
+    if (s.size === 1){ donoRef.set(r, s.values().next().value); return; }
+    var texto = refs[r].idt.cab || refs[r].pg.texto, lista = Array.from(s);
+    /* a matricula impressa desempata antes do nome */
+    if (refs[r].idt.mat){
+      var pelaMat = lista.filter(function(ch){ return unicas.get(ch).digitos === refs[r].idt.mat; });
+      if (pelaMat.length === 1){ donoRef.set(r, pelaMat[0]); return; }
+    }
+    var cheio = lista.filter(function(ch){ var p = unicas.get(ch); return p.nomeNorm && texto.indexOf(p.nomeNorm) !== -1; });
+    if (cheio.length === 1){ donoRef.set(r, cheio[0]); return; }
+    var parcial = (cheio.length ? cheio : lista).filter(function(ch){ var p = unicas.get(ch); return p.nomeNorm && nomeNaPagina(p.nomeNorm, texto); });
+    donoRef.set(r, parcial.length === 1 ? parcial[0] : "?");
+  });
+
+  unicas.forEach(function(p){
+    if (via[p.chave]) return;
+    var ws = p.nomeNorm.split(" ").filter(function(w){ return w.length > 2; });
+    if (ws.length < 2) return;
+    var c = intersecao([porPal.get(ws[0]), porPal.get(ws[ws.length - 1])]).filter(function(r){
+      if (donoRef.has(r) || !compativel(r, p)) return false;
+      var cab = refs[r].idt.cab;
+      return !cab || (temPalavra(cab, ws[0]) && temPalavra(cab, ws[ws.length - 1]));
+    });
+    if (c.length && c.length <= 3){
+      c.forEach(function(r){ donoRef.set(r, p.chave); });
+      via[p.chave] = "nome parcial";
+    }
+  });
+
+  var donoPag = new Map();
+  donoRef.forEach(function(ch, r){ donoPag.set(refs[r].pdf.id + ":" + refs[r].pg.n, ch); });
+
+  /* o cartão começa na página identificada e leva junto as folhas seguintes sem
+     identificação (resumo de horas, folha em branco), até começar outro cartão */
+  function extensao(pdf, n, ch){
+    var ns = [n], soltas = 0;
+    for (var m = n + 1; m <= pdf.paginas.length; m++){
+      var pg = pdf.paginas[m - 1], d = donoPag.get(pdf.id + ":" + m);
+      if (pg.tipo === "cartao"){
+        if (d){
+          if (ch && ch !== "?" && d === ch){ ns.push(m); soltas = 0; continue; }
+          break;
+        }
+        if (!pg.temRotuloId && soltas < MAX_CONTINUACAO){ ns.push(m); soltas++; continue; }
+        break;
+      }
+      if ((pg.tipo === "resumo" || pg.tipo === "vazio") && soltas < MAX_CONTINUACAO){ ns.push(m); soltas++; continue; }
+      break;
+    }
+    return ns;
+  }
+  function compDe(pdf, ns){
+    for (var i = 0; i < ns.length; i++){ var c = pdf.paginas[ns[i] - 1].comp; if (c) return c; }
+    return pdf.compNome;
+  }
+
+  var cartoesPor = {}, naoIdent = [];
+  estado.pdfs.forEach(function(pdf){
+    var n = 1;
+    while (n <= pdf.paginas.length){
+      var pg = pdf.paginas[n - 1];
+      if (pg.tipo !== "cartao"){ n++; continue; }
+      var ch = donoPag.get(pdf.id + ":" + n);
+      var ns = extensao(pdf, n, ch);
+      var cartao = { pdf: pdf, paginas: ns, comp: compDe(pdf, ns), via: "", idt: identidadeCartao(pg.texto) };
+      if (ch && ch !== "?"){
+        cartao.via = via[ch];
+        (cartoesPor[ch] = cartoesPor[ch] || []).push(cartao);
+      } else naoIdent.push(cartao);
+      n = ns[ns.length - 1] + 1;
+    }
+  });
+
+  /* arquivo com a matrícula ou o nome no próprio nome do arquivo */
+  estado.pdfs.forEach(function(pdf){
+    if (!pdf.completo || pdf.erro === "não foi possível ler") return;
+    unicas.forEach(function(p){
+      var bate = (p.digitos.length >= 3 && pdf.numsNome.indexOf(p.digitos) !== -1) ||
+                 (p.nomeNorm.length >= 5 && pdf.nomeNorm.indexOf(p.nomeNorm) !== -1);
+      if (!bate) return;
+      var temCartao = pdf.paginas.some(function(pg){ return pg.tipo === "cartao"; });
+      if (temCartao){
+        naoIdent = naoIdent.filter(function(c){
+          if (c.pdf !== pdf) return true;
+          if (c.idt && c.idt.mat && p.digitos && !quaseIgual(c.idt.mat, p.digitos)) return true;
+          c.via = "nome do arquivo";
+          (cartoesPor[p.chave] = cartoesPor[p.chave] || []).push(c);
+          return false;
+        });
+      } else if (pdf.paginas.length && pdf.paginas.length <= 3 && pdf.paginas.every(function(pg){ return pg.tipo !== "outro"; })){
+        var todas = pdf.paginas.map(function(pg){ return pg.n; });
+        (cartoesPor[p.chave] = cartoesPor[p.chave] || []).push({
+          pdf: pdf, paginas: todas, comp: compDe(pdf, todas), via: "nome do arquivo"
+        });
+      }
+    });
+  });
+
+  return { cartoesPor: cartoesPor, naoIdent: naoIdent, outrosDocs: outrosDocs };
+}
+
+function chaveCartao(c){ return c.pdf.id + "#" + c.paginas.join(","); }
+
+function calcular(){
+  var ind = obterIndice();
+  var alvo = compAlvo();
+  return estado.pessoas.map(function(p){
+    var todos = ind.cartoesPor[p.chave] || [];
+    var daComp = alvo ? todos.filter(function(c){ return !c.comp || mesmaComp(c.comp, alvo); }) : todos;
+    var outras = alvo ? todos.filter(function(c){ return c.comp && !mesmaComp(c.comp, alvo); }) : [];
+    var auto = daComp.length > 0 || p.situacao === "ok";
+    var m = estado.manual[p.chave];
+    var d = {
+      p: p, cartoes: daComp, outras: outras,
+      postado: m === undefined ? auto : m === "ok",
+      manual: m !== undefined,
+      porPlanilha: !daComp.length && p.situacao === "ok",
+      chaveAssin: daComp.length ? chaveCartao(daComp[0]) : ""
+    };
+    d.assinatura = veredito(p.chave, d.chaveAssin);
+    return d;
+  });
+}
+
+function naoIdentDaComp(){
+  var alvo = compAlvo();
+  return obterIndice().naoIdent.filter(function(c){ return !alvo || !c.comp || mesmaComp(c.comp, alvo); });
+}
+
+function compMaisComum(){
+  var ind = obterIndice(), cont = {}, melhor = null, max = 0;
+  function contar(c){
+    if (!c.comp) return;
+    var k = c.comp.a * 100 + c.comp.m;
+    cont[k] = (cont[k] || 0) + 1;
+    if (cont[k] > max){ max = cont[k]; melhor = c.comp; }
+  }
+  Object.keys(ind.cartoesPor).forEach(function(k){ ind.cartoesPor[k].forEach(contar); });
+  ind.naoIdent.forEach(contar);
+  return melhor;
+}
+
+/* ---------- assinatura ---------- */
+function veredito(chave, chaveCart){
+  if (!chaveCart) return { sit: "nao_verificado", como: "" };
+  var man = estado.assinManual[chave];
+  if (man && man.cartao === chaveCart) return { sit: man.sit, como: "conferido por você" };
+  var a = estado.assin[chave];
+  if (!a || a.cartao !== chaveCart) return { sit: "nao_verificado", como: "" };
+  if (a.digital) return { sit: "assinado", como: "assinatura digital no arquivo" };
+  if (estado.indistinto || a.marca == null) return { sit: "duvida", como: "confira o recorte" };
+  if (a.marca >= estado.limiar) return { sit: "assinado", como: "traço no campo de assinatura" };
+  return { sit: "sem", como: "campo de assinatura em branco" };
+}
+
+function paginaAssinatura(c){
+  var melhor = null;
+  c.paginas.forEach(function(n){
+    var pg = c.pdf.paginas[n - 1];
+    if (pg && pg.rotulo && (!melhor || pg.rotulo.peso <= melhor.rotulo.peso)) melhor = pg;
+  });
+  return melhor ? melhor.n : c.paginas[0];
+}
+
+function ocupado(){
+  if (fila.rodando){ msg("Aguarde terminar a leitura dos PDFs. Se quiser, use \u201cParar agora\u201d."); return true; }
+  if (estado.trabalhando){ msg("Aguarde a tarefa em andamento terminar. Se quiser, use \u201cParar agora\u201d."); return true; }
+  return false;
+}
+
+/* ---------- parar na hora ----------
+   Cada tarefa longa guarda o numero da geracao em que comecou. Aumentar o
+   numero faz a tarefa velha parar sozinha e a tela libera na mesma hora,
+   sem esperar o passo atual terminar. */
+var Tarefa = { geracao: 0, t0: 0 };
+function valendo(g){ return g === Tarefa.geracao; }
+function cancelarTudo(silencioso){
+  Tarefa.geracao++;
+  estado.pdfs.forEach(function(r){ r.processando = false; });
+  fila.rodando = false;
+  estado.trabalhando = "";
+  Vivo.zerar();
+  progresso(null);
+  if (!silencioso) msg("Tarefa interrompida. Dá para recomeçar quando quiser.");
+  atualizarBotoes(estado.ultimo);
+  desenharArquivos();
+}
+function tempoQueFalta(feitos, total, t0){
+  if (feitos < 3 || feitos >= total) return "";
+  var s = Math.round((Date.now() - t0) / feitos * (total - feitos) / 1000);
+  return s < 90 ? " · faltam ~" + s + "s" : " · faltam ~" + Math.round(s / 60) + " min";
+}
+
+/* ---------- reler tudo do zero ---------- */
+async function relerCartoes(){
+  if (!estado.pdfs.length){ msg("Nenhum PDF carregado."); return; }
+  if (!confirm("Ler todos os PDFs de novo, do zero?\n\nAs marcações manuais e a planilha continuam como estão.")) return;
+  cancelarTudo(true);
+  await cederVez();
+  for (var i = 0; i < estado.pdfs.length; i++){
+    var r = estado.pdfs[i];
+    if (r.doc){ try{ r.doc.destroy(); } catch (e){} }
+    r.doc = null; r.buf = null; r.abrindo = null;
+    r.paginas = []; r.completo = false; r.erro = ""; r.total = 0; r.digitalChecado = false; r.processando = false;
+    await salvarProgresso(r);
+  }
+  docsAbertos.length = 0;
+  estado.assin = {}; estado.verificado = false; estado.versaoAssin++;
+  await salvarAssin(true);
+  indice = { chave: "", resultado: null };
+  msg("Recomeçando a leitura dos PDFs...");
+  desenharArquivos(); desenhar();
+  processarFila();
+}
+
+function alvosAssinatura(dados){
+  var vistos = new Set();
+  return dados.filter(function(d){
+    if (!d.cartoes.length || vistos.has(d.p.chave)) return false;
+    vistos.add(d.p.chave); return true;
+  });
+}
+function faltamVerificar(alvos){
+  return alvos.filter(function(d){
+    var a = estado.assin[d.p.chave];
+    return !a || a.cartao !== d.chaveAssin;
+  });
+}
+
+async function verificarAssinaturas(){
+  if (ocupado()) return;
+  var dados = calcular();
+  var alvos = alvosAssinatura(dados);
+  if (!alvos.length){ msg("Nenhum cartão localizado para verificar."); return; }
+  var faltam = faltamVerificar(alvos);
+  if (!faltam.length){ estado.assin = {}; faltam = alvos; }
+
+  estado.trabalhando = "assin";
+  var g = Tarefa.geracao, t0 = Date.now();
+  Vigia.avanco = Date.now(); Vigia.leu = false;
+  Vivo.ligar();
+  atualizarBotoes(dados);
+  try{
+    /* agrupa por arquivo para nao reabrir o mesmo PDF varias vezes */
+    faltam.sort(function(a, b){
+      var pa = a.cartoes[0].pdf.id, pb = b.cartoes[0].pdf.id;
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return paginaAssinatura(a.cartoes[0]) - paginaAssinatura(b.cartoes[0]);
+    });
+    var prox = 0, feitos = 0;
+    var trabalhador = async function(){
+      while (prox < faltam.length && valendo(g)){
+        var d = faltam[prox++];
+        var c = d.cartoes[0];
+        try{
+          var n = paginaAssinatura(c);
+          var info = await medirPagina(c.pdf, n);
+          var digital = c.pdf.digital || /ASSINADO DIGITALMENTE|VALIDAR ITI GOV BR|ICP BRASIL|ASSINATURA ELETRONICA/.test(info.texto);
+          if (!valendo(g)) return;
+          estado.assin[d.p.chave] = {
+            cartao: d.chaveAssin, recorte: info.recorte, digital: digital,
+            grade: digital ? null : Array.from(info.grade), marca: null
+          };
+        } catch (e){ /* página que não renderiza fica sem veredito */ }
+        feitos++;
+        Vigia.avanco = Date.now(); Vigia.leu = true;
+        progresso(feitos, faltam.length, "Verificando assinatura " + feitos + " de " + faltam.length +
+          tempoQueFalta(feitos, faltam.length, t0));
+        if (feitos % 10 === 0) salvarAssin();
+        await cederVez();
+      }
+    };
+    var equipe = [];
+    for (var t = 0; t < Math.min(PARALELO_ASSIN, faltam.length); t++) equipe.push(trabalhador());
+    await Promise.all(equipe);
+    if (!valendo(g)) return;
+    pontuarTudo(alvos);
+    estado.verificado = true;
+    msg(estado.indistinto
+      ? "Poucos cartões para comparar entre si. Confira os recortes um a um."
+      : "Verificação concluída. Confira os recortes antes de cobrar.");
+  } finally {
+    if (valendo(g)){
+      estado.trabalhando = "";
+      Vivo.desligar();
+      progresso(null);
+    }
+    estado.versaoAssin++;
+    await salvarAssin(true);
+    salvarSessao();
+    desenhar();
+  }
+}
+
+function pontuarTudo(alvos){
+  var chaves = alvos.map(function(d){ return d.p.chave; }).filter(function(k){
+    var a = estado.assin[k];
+    return a && a.grade;
+  });
+  if (chaves.length >= 3){
+    var notas = pontuarContraModelo(chaves.map(function(k){ return Float32Array.from(estado.assin[k].grade); }));
+    chaves.forEach(function(k, i){ estado.assin[k].marca = notas[i]; });
+    estado.indistinto = false;
+  } else {
+    estado.indistinto = true;
+  }
+}
+
+async function medirPagina(pdf, n){
+  var doc = await abrirDoc(pdf);
+  var pagina = await doc.getPage(n);
+  var vp = pagina.getViewport({ scale: 1.4 });
+  var W = Math.round(vp.width), H = Math.round(vp.height);
+
+  var meta = pdf.paginas[n - 1];
+  var ajuste = $("selRegiao").value;
+  var caixa;
+  if (meta && meta.rotulo && ajuste !== "rodape"){
+    var pt = vp.convertToViewportPoint(meta.rotulo.x, meta.rotulo.y);
+    var desvio = ajuste === "acima" ? -34 : ajuste === "abaixo" ? 34 : 0;
+    var baseY = Math.round(pt[1]) + desvio;
+    var topo = Math.max(0, Math.min(H - 20, baseY - 62));
+    var fim = Math.max(topo + 20, Math.min(H, baseY - 13));
+    caixa = { x: 0, y: topo, w: W, h: fim - topo };
+  } else {
+    var y1 = Math.round(H * 0.78);
+    var y2 = Math.round(H * 0.90);
+    caixa = { x: 0, y: y1, w: W, h: y2 - y1 };
+  }
+
+  /* desenha SO a faixa da assinatura em vez da folha inteira:
+     ~20x menos pixels por cartao */
+  var r = await desenharPagina(pagina, caixa.w, caixa.h, vp, [1, 0, 0, 1, -caixa.x, -caixa.y], { reg: pdf, n: n });
+  var tela = r.tela;
+  var img = r.ctx.getImageData(0, 0, caixa.w, caixa.h);
+  var c2 = document.createElement("canvas");
+  c2.width = caixa.w; c2.height = caixa.h;
+  c2.getContext("2d").putImageData(img, 0, 0);
+  pagina.cleanup();
+  descartarTela(tela);
+  return { grade: gradeDe(img, caixa.w, caixa.h), recorte: c2.toDataURL("image/jpeg", 0.8), texto: meta ? meta.texto : "" };
+}
+
+var COLS = 56, ROWS = 14;
+function gradeDe(img, largura, altura){
+  var g = new Float32Array(COLS * ROWS), cont = new Float32Array(COLS * ROWS), d = img.data;
+  for (var y = 0; y < altura; y++){
+    var ry = Math.min(ROWS - 1, Math.floor(y * ROWS / altura));
+    for (var x = 0; x < largura; x++){
+      var rx = Math.min(COLS - 1, Math.floor(x * COLS / largura));
+      var i = (y * largura + x) * 4;
+      var k = ry * COLS + rx;
+      g[k] += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      cont[k]++;
+    }
+  }
+  for (var j = 0; j < g.length; j++) g[j] = cont[j] ? g[j] / cont[j] : 255;
+  var ordenado = Array.prototype.slice.call(g).sort(function(a, b){ return a - b; });
+  var mediana = ordenado[Math.floor(ordenado.length / 2)];
+  for (var m = 0; m < g.length; m++) g[m] -= mediana;
+  return g;
+}
+
+function alinhar(g){
+  var perfil = [], r, c;
+  for (r = 0; r < ROWS; r++){
+    var soma = 0;
+    for (c = 0; c < COLS; c++) soma += g[r * COLS + c];
+    perfil.push(soma / COLS);
+  }
+  var linha = 0;
+  for (r = 1; r < ROWS; r++){ if (perfil[r] < perfil[linha]) linha = r; }
+  var desloc = (ROWS - 4) - linha;
+  if (!desloc) return g;
+  var saida = new Float32Array(COLS * ROWS);
+  for (r = 0; r < ROWS; r++){
+    var de = r - desloc;
+    for (c = 0; c < COLS; c++) saida[r * COLS + c] = (de >= 0 && de < ROWS) ? g[de * COLS + c] : 0;
+  }
+  return saida;
+}
+
+function pontuarContraModelo(brutos){
+  var grades = brutos.map(alinhar);
+  var modelo = new Float32Array(COLS * ROWS);
+  var coluna = new Float32Array(grades.length);
+  for (var k = 0; k < COLS * ROWS; k++){
+    for (var i = 0; i < grades.length; i++) coluna[i] = grades[i][k];
+    var ord = Array.prototype.slice.call(coluna).sort(function(a, b){ return a - b; });
+    modelo[k] = ord[Math.min(ord.length - 1, Math.floor(ord.length * 0.7))];
+  }
+  var tolerante = new Float32Array(COLS * ROWS);
+  for (var r = 0; r < ROWS; r++){
+    for (var c = 0; c < COLS; c++){
+      var menor = Infinity;
+      for (var dr = -1; dr <= 1; dr++){
+        for (var dc = -1; dc <= 1; dc++){
+          var rr = r + dr, cc = c + dc;
+          if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
+          if (modelo[rr * COLS + cc] < menor) menor = modelo[rr * COLS + cc];
+        }
+      }
+      tolerante[r * COLS + c] = menor;
+    }
+  }
+  return grades.map(function(g){
+    var difs = new Float32Array(g.length), k;
+    for (k = 0; k < g.length; k++) difs[k] = g[k] - tolerante[k];
+    var ord = Array.prototype.slice.call(difs).sort(function(a, b){ return a - b; });
+    var centro = ord[Math.floor(ord.length / 2)];
+    var desvios = [];
+    for (k = 0; k < difs.length; k++) desvios.push(Math.abs(difs[k] - centro));
+    desvios.sort(function(a, b){ return a - b; });
+    var margem = Math.max(25, 3.5 * desvios[Math.floor(desvios.length / 2)]);
+    var marcada = new Uint8Array(g.length);
+    for (k = 0; k < difs.length; k++) marcada[k] = difs[k] < centro - margem ? 1 : 0;
+    var contadas = 0;
+    for (var r = 0; r < ROWS; r++){
+      for (var c = 0; c < COLS; c++){
+        var i = r * COLS + c;
+        if (!marcada[i]) continue;
+        var vizinho = (c > 0 && marcada[i - 1]) || (c < COLS - 1 && marcada[i + 1]) ||
+                      (r > 0 && marcada[i - COLS]) || (r < ROWS - 1 && marcada[i + COLS]);
+        if (vizinho) contadas++;
+      }
+    }
+    return contadas / g.length;
+  });
+}
+
+/* ---------- tela ---------- */
+var tDesenho = null, ultimoDesenho = 0;
+function agendarDesenho(){
+  if (tDesenho) return;
+  var espera = Math.max(0, 1500 - (Date.now() - ultimoDesenho));
+  tDesenho = setTimeout(function(){ tDesenho = null; desenhar(); }, espera);
+}
+
+function desenhar(){
+  ultimoDesenho = Date.now();
+  var tem = estado.pessoas.length > 0 || estado.pessoasTodas.length > 0;
+  $("secVazio").hidden = tem;
+  $("secFiltros").hidden = !tem;
+  if (!tem){
+    ["secPlacar","secAvisos","secRevisao","secTabela"].forEach(function(id){ $(id).innerHTML = ""; });
+    chaveRevisao = "";
+    estado.ultimo = [];
+    atualizarBotoes([]);
+    return;
+  }
+  var dados = calcular();
+  estado.ultimo = dados;
+  desenharPlacar(dados);
+  desenharAvisos(dados);
+  desenharRevisao(dados);
+  desenharFiltros(dados);
+  desenharTabela(dados);
+  atualizarBotoes(dados);
+}
+
+function desenharPlacar(dados){
+  var ok = 0, sem = 0, outra = 0;
+  dados.forEach(function(d){
+    if (d.postado) ok++;
+    if (d.assinatura.sit === "sem") sem++;
+    if (!d.postado && d.outras.length) outra++;
+  });
+  var pend = dados.length - ok;
+  var alvo = compAlvo();
+  var h = '<div class="placar"><div class="placar-topo">';
+  h += '<div><div class="num">' + dados.length + '</div><div class="rot">colaboradores na lista' + (alvo ? " · " + compTxt(alvo) : "") + '</div></div>';
+  h += '<div><div class="num ok">' + ok + '</div><div class="rot">cartões recebidos · ' + (dados.length ? Math.round(ok * 100 / dados.length) : 0) + '%</div></div>';
+  h += '<div><div class="num pend">' + pend + '</div><div class="rot">pendentes' + (alvo ? " da competência" : "") + '</div></div>';
+  if (estado.verificado) h += '<div><div class="num sem">' + sem + '</div><div class="rot">sem assinatura do colaborador</div></div>';
+  if (outra) h += '<div><div class="num" style="color:#2d4f7c">' + outra + '</div><div class="rot">só com cartão de outra competência</div></div>';
+  h += '</div><div class="tally">';
+  dados.forEach(function(d){
+    var cls = d.assinatura.sit === "sem" ? "sem" : (d.postado ? "ok" : "");
+    h += '<button class="tick ' + cls + '" data-chave="' + escapar(d.p.chave) + '" title="' + escapar(d.p.nome) + '"></button>';
+  });
+  h += "</div></div>";
+  $("secPlacar").innerHTML = h;
+}
+
+function desenharAvisos(dados){
+  var av = [], alvo = compAlvo(), ind = obterIndice();
+  if (estado.recuperado){
+    av.push("Sessão anterior recuperada: planilha, " + estado.recuperado.pdfs + " PDF(s), marcações e verificações." +
+      (estado.recuperado.incompletos ? " A leitura continua de onde parou." : "") +
+      ' <button class="alternar" data-acao="fecharAviso">ok</button>');
+  }
+  if (!estado.pdfs.length){
+    av.push("Nenhum cartão carregado ainda. Todos aparecem como pendentes até você anexar os PDFs.");
+  }
+  if (!alvo && estado.pdfs.length){
+    var sug = compMaisComum();
+    if (sug) av.push("Nenhuma competência informada. A maioria dos cartões é de <b>" + compTxt(sug) + "</b>." +
+      ' <button class="alternar" data-acao="usarComp" data-comp="' + compTxt(sug) + '">Usar ' + compTxt(sug) + "</button>");
+    else av.push("Informe a competência no topo para contar só os cartões do mês certo.");
+  }
+  if (estado.col.comp >= 0){
+    if (alvo) av.push("Lista filtrada pela coluna de competência da planilha: " + estado.pessoas.length + " colaborador(es) com pendência em " + compTxt(alvo) + ".");
+    else av.push("A planilha tem coluna de competência. Informe a competência no topo para considerar só os pendentes dela.");
+  }
+  var outra = dados.filter(function(d){ return !d.postado && d.outras.length; }).length;
+  if (outra) av.push(outra + " colaborador(es) só têm cartão de outra competência e continuam pendentes. Use o filtro “Outra competência”.");
+  var ni = naoIdentDaComp().length;
+  if (ni) av.push(ni + " cartão(ões) não bateram com ninguém da planilha. Eles vão para a pasta NAO_IDENTIFICADOS quando você baixa todos os cartões.");
+  if (ind.outrosDocs) av.push(ind.outrosDocs + " página(s) de outros documentos foram deixadas de fora (holerites, ASO, rescisão e similares).");
+  var difMat = (dados || []).filter(function(d){
+    var m = matDoCartao(d), pl = soDigitos(d.p.matricula);
+    return m && pl && m !== pl;
+  });
+  if (difMat.length){
+    av.push(difMat.length + " colaborador(es) com matrícula na planilha diferente da impressa no cartão: " +
+      difMat.slice(0, 3).map(function(d){
+        return "<b>" + escapar(d.p.nome) + "</b> (planilha " + escapar(d.p.matricula) + ", cartão " + escapar(matDoCartao(d)) + ")";
+      }).join("; ") + (difMat.length > 3 ? " e outros" : "") +
+      ". O arquivo sai com a da planilha — confira qual está certa.");
+  }
+  var semMatPl = (dados || []).filter(function(d){ return !soDigitos(d.p.matricula) && matDoCartao(d); }).length;
+  if (semMatPl) av.push(semMatPl + " colaborador(es) estão sem matrícula na planilha: o arquivo sai com a matrícula lida no cartão.");
+  var semTexto = estado.pdfs.filter(function(x){ return x.erro; }).length;
+  if (semTexto) av.push(semTexto + " PDF(s) não puderam ser lidos. " + (OCR.falhou
+    ? "O leitor de imagem (OCR) não carregou — confira a internet e carregue de novo."
+    : "Confira se o arquivo abre normalmente."));
+  var porImagem = estado.pdfs.filter(function(x){ return x.paginas.some(function(g){ return g.ocr; }); }).length;
+  if (porImagem) av.push(porImagem + " PDF(s) digitalizados foram lidos por imagem. A leitura pode errar algum número; por isso o app também confere pelo nome e pelo nome do arquivo.");
+  var localizados = alvosAssinatura(dados);
+  var faltam = faltamVerificar(localizados).length;
+  if (localizados.length && !fila.rodando){
+    if (!estado.verificado) av.push(localizados.length + " cartão(ões) localizados. Use “Verificar assinaturas” para separar os que voltaram em branco.");
+    else if (faltam) av.push(faltam + " cartão(ões) ainda sem verificação de assinatura. Clique em “Verificar assinaturas” para continuar.");
+  }
+  $("secAvisos").innerHTML = av.map(function(t){ return '<div class="aviso">' + t + "</div>"; }).join("");
+}
+
+var chaveRevisao = "";
+function desenharRevisao(dados){
+  var verificados = dados.filter(function(d){ return estado.assin[d.p.chave] && estado.assin[d.p.chave].cartao === d.chaveAssin; });
+  var revisar = estado.verTodos ? verificados
+    : dados.filter(function(d){ return d.assinatura.sit === "sem" || d.assinatura.sit === "duvida"; });
+  var chave = estado.versaoAssin + "|" + estado.verTodos + "|" + estado.verificado + "|" +
+    revisar.map(function(d){ return d.p.chave + d.assinatura.sit; }).join(",");
+  if (chave === chaveRevisao) return;
+  chaveRevisao = chave;
+  if (!estado.verificado || !verificados.length){ $("secRevisao").innerHTML = ""; return; }
+  var h = '<div class="revisao"><h3>' + (estado.verTodos ? "Recortes de todos os cartões (" + revisar.length + ")"
+    : estado.indistinto ? "Confira os campos de assinatura (" + revisar.length + ")" : "Campos de assinatura em branco (" + revisar.length + ")") + "</h3>";
+  h += "<p>Recorte do campo de assinatura de cada cartão. Clique no que corresponde ao que você está vendo. ";
+  h += '<button class="alternar" data-acao="verTodos">' + (estado.verTodos ? "ver só os que faltam" : "ver os recortes de todos") + "</button></p>";
+  if (!revisar.length) h += "<p>Todos os cartões verificados estão assinados.</p>";
+  h += '<div class="grade">';
+  revisar.forEach(function(d){
+    var a = estado.assin[d.p.chave];
+    h += '<div class="recorte">';
+    if (a && a.recorte) h += '<img loading="lazy" src="' + a.recorte + '" alt="Campo de assinatura de ' + escapar(d.p.nome) + '">';
+    h += '<div class="info"><b>' + escapar(d.p.nome) + "</b>" + escapar(d.p.matricula) + " · " + escapar(rotuloAssin(d.assinatura.sit)) + "</div>";
+    h += '<div style="display:flex">';
+    h += '<button data-acao="assinado" data-chave="' + escapar(d.p.chave) + '">assinado</button>';
+    h += '<button data-acao="semAssin" data-chave="' + escapar(d.p.chave) + '" style="border-left:1px solid var(--line)">sem assinatura</button>';
+    h += "</div></div>";
+  });
+  h += "</div></div>";
+  $("secRevisao").innerHTML = h;
+}
+
+function rotuloAssin(sit){
+  return sit === "assinado" ? "assinado" : sit === "sem" ? "sem assinatura" : sit === "duvida" ? "conferir" : "não verificado";
+}
+
+var chaveSetores = "";
+function desenharFiltros(dados){
+  Array.prototype.forEach.call(document.querySelectorAll("#secFiltros .chip"), function(b){
+    b.setAttribute("aria-pressed", String(b.getAttribute("data-f") === estado.filtro));
+  });
+  var setores = [];
+  dados.forEach(function(d){ if (d.p.extra && setores.indexOf(d.p.extra) === -1) setores.push(d.p.extra); });
+  setores.sort();
+  var sel = $("selSetor");
+  var k = setores.join("\u0001");
+  if (k !== chaveSetores){
+    chaveSetores = k;
+    sel.innerHTML = '<option value="">Todas as gerências</option>' + setores.map(function(s){
+      return '<option value="' + escapar(s) + '">' + escapar(s) + "</option>";
+    }).join("");
+    if (setores.indexOf(estado.setor) === -1) estado.setor = "";
+  }
+  sel.value = estado.setor;
+  sel.hidden = !setores.length;
+}
+
+function descreverCartoes(lista){
+  return lista.map(function(c){
+    var pgs = c.paginas.length > 1 ? "págs. " + c.paginas[0] + "–" + c.paginas[c.paginas.length - 1] : "pág. " + c.paginas[0];
+    return c.pdf.nome + " · " + pgs;
+  }).join(" | ");
+}
+
+function desenharTabela(dados){
+  var b = normalizar(estado.busca);
+  var visiveis = dados.filter(function(d){
+    if (estado.filtro === "pendentes" && d.postado) return false;
+    if (estado.filtro === "ok" && !d.postado) return false;
+    if (estado.filtro === "sem" && d.assinatura.sit !== "sem") return false;
+    if (estado.filtro === "outra" && !(d.outras.length && !d.cartoes.length)) return false;
+    if (estado.setor && d.p.extra !== estado.setor) return false;
+    if (b && d.p.nomeNorm.indexOf(b) === -1 && normalizar(d.p.matricula).indexOf(b) === -1) return false;
+    return true;
+  });
+  var mostrarPlan = estado.col.sit >= 0;
+  var h = '<div class="tabela-rolagem"><table><thead><tr><th>Matrícula</th><th>Nome</th><th>Gerência</th>' +
+    (mostrarPlan ? "<th>Planilha</th>" : "") +
+    "<th>Cartão</th><th>Competência</th><th>Assinatura</th><th>Localizado em</th><th></th></tr></thead><tbody>";
+  if (!visiveis.length) h += '<tr><td colspan="9" style="color:var(--muted)">Nenhum colaborador nesse filtro.</td></tr>';
+  visiveis.forEach(function(d){
+    var ch = escapar(d.p.chave);
+    var origem = d.manual ? '<span class="origem manual">marcado manualmente</span>'
+      : d.cartoes.length ? '<span class="origem">' + escapar(descreverCartoes(d.cartoes)) + "</span>"
+      : d.outras.length ? '<span class="origem outra">' + escapar(descreverCartoes(d.outras)) + "</span>"
+      : d.porPlanilha ? '<span class="origem">planilha: ' + escapar(d.p.sitTexto) + "</span>"
+      : '<span class="origem">—</span>';
+    var comps = d.cartoes.length ? d.cartoes.map(function(c){ return c.comp ? compTxt(c.comp) : "não identificada"; })
+      : d.outras.map(function(c){ return compTxt(c.comp); });
+    comps = comps.filter(function(v, i){ return comps.indexOf(v) === i; });
+    var tagComp = d.cartoes.length ? '<span class="origem">' + escapar(comps.join(", ")) + "</span>"
+      : d.outras.length ? '<span class="tag outra">só ' + escapar(comps.join(", ")) + "</span>" : '<span class="origem">—</span>';
+    var av = d.assinatura;
+    var tagAssin = av.sit === "assinado" ? '<span class="tag ok">Assinado</span>'
+      : av.sit === "sem" ? '<span class="tag sem">Sem assinatura</span>'
+      : av.sit === "duvida" ? '<span class="tag pend">Conferir</span>'
+      : '<span class="tag neutro">não verificado</span>';
+    h += "<tr>";
+    h += '<td class="mat">' + escapar(d.p.matricula) + "</td>";
+    h += "<td>" + escapar(d.p.nome) + "</td>";
+    h += "<td>" + escapar(d.p.extra) + "</td>";
+    if (mostrarPlan) h += "<td>" + escapar(d.p.sitTexto) + "</td>";
+    h += '<td><span class="tag ' + (d.postado ? "ok" : "pend") + '">' + (d.postado ? "Recebido" : "Pendente") + "</span></td>";
+    h += "<td>" + tagComp + "</td>";
+    h += "<td>" + tagAssin + (av.como ? '<div class="origem">' + escapar(av.como) + "</div>" : "") + "</td>";
+    h += "<td>" + origem + "</td>";
+    h += '<td><button class="alternar" data-acao="postado" data-chave="' + ch + '">' + (d.postado ? "marcar pendente" : "marcar recebido") + "</button>";
+    if (d.cartoes.length && av.sit !== "nao_verificado"){
+      h += ' <button class="alternar" data-acao="' + (av.sit === "sem" ? "assinado" : "semAssin") + '" data-chave="' + ch + '">' +
+        (av.sit === "sem" ? "assinado" : "sem assinatura") + "</button>";
+    }
+    h += "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+  $("secTabela").innerHTML = h;
+}
+
+/* com muitos arquivos, redesenhar a lista a cada PDF pronto custa caro:
+   durante a leitura isso passa a acontecer no maximo a cada 0,7 s */
+var tArq = null, ultimoArq = 0;
+function desenharArquivos(){
+  if (!fila.rodando){
+    if (tArq){ clearTimeout(tArq); tArq = null; }
+    ultimoArq = Date.now();
+    return desenharArquivosAgora();
+  }
+  if (tArq) return;
+  tArq = setTimeout(function(){
+    tArq = null; ultimoArq = Date.now(); desenharArquivosAgora();
+  }, Math.max(0, 700 - (Date.now() - ultimoArq)));
+}
+function desenharArquivosAgora(){
+  var ul = $("listaPdf");
+  var frag = document.createDocumentFragment();
+  estado.pdfs.forEach(function(p){
+    var li = document.createElement("li");
+    if (p.erro) li.className = "alerta";
+    var a = document.createElement("div"); a.className = "nome-arq"; a.textContent = p.nome; a.title = p.nome;
+    var b = document.createElement("span");
+    var cartoes = p.paginas.filter(function(x){ return x.tipo === "cartao"; }).length;
+    b.textContent = !p.completo
+      ? (p.paginas.length ? "lendo " + p.paginas.length + "/" + (p.total || "?") : "na fila")
+      : (p.erro || (p.paginas.length + " pág. · " + cartoes + " de cartão" +
+          (p.paginas.some(function(x){ return x.ocr; }) ? " · lido por imagem" : "") +
+          (p.digital ? " · assinado digitalmente" : "")));
+    li.appendChild(a); li.appendChild(b);
+    frag.appendChild(li);
+  });
+  ul.innerHTML = "";
+  ul.appendChild(frag);
+  $("rotPdf").textContent = estado.pdfs.length
+    ? estado.pdfs.length + " PDF(s) carregados — adicionar mais"
+    : "Escolher PDFs";
+}
+
+function atualizarBotoes(dados){
+  dados = dados || [];
+  var livre = !fila.rodando && !estado.trabalhando;
+  $("btnParar").hidden = livre;
+  $("btnReler").disabled = !estado.pdfs.length;
+  var alvos = alvosAssinatura(dados);
+  var faltam = faltamVerificar(alvos).length;
+  var bA = $("btnAssin");
+  bA.disabled = !livre || !alvos.length;
+  bA.textContent = estado.trabalhando === "assin" ? "Verificando..."
+    : (estado.verificado && faltam && faltam < alvos.length) ? "Continuar verificação (" + faltam + " restantes)"
+    : (estado.verificado && !faltam) ? "Verificar assinaturas de novo" : "Verificar assinaturas";
+  var quantos = grupoSelecionado(dados).length + ($("selGrupo").value === "todos" ? naoIdentDaComp().length : 0);
+  $("btnZip").disabled = !livre || quantos === 0;
+  $("btnPdf").disabled = !livre || quantos === 0;
+  $("btnXlsx").disabled = !dados.length;
+  $("btnCopiar").disabled = !dados.some(function(d){ return !d.postado || d.assinatura.sit === "sem"; });
+}
+
+/* ---------- saídas ---------- */
+function grupoSelecionado(dados){
+  var g = $("selGrupo").value;
+  var vistos = new Set();
+  return dados.filter(function(d){
+    if (!d.cartoes.length || vistos.has(d.p.chave)) return false;
+    var ok = g === "todos" ? true
+      : g === "pendentes" ? (estado.col.sit < 0 || d.p.situacao === "pendente")
+      : d.assinatura.sit === "sem";
+    if (ok) vistos.add(d.p.chave);
+    return ok;
+  });
+}
+
+/* vale o que esta escrito no cartao; o campo da tela so entra se o cartao nao disser */
+function compDoArquivo(d){
+  return (d.cartoes[0] && d.cartoes[0].comp) || compAlvo() || null;
+}
+function matDoCartao(d){
+  var c = d.cartoes && d.cartoes[0];
+  return (c && c.idt && c.idt.mat) || "";
+}
+
+function nomeArquivo(d, sem, usados){
+  var base = [
+    limparParte(d.p.matricula) || limparParte(matDoCartao(d)) || "SEM_MATRICULA",
+    limparParte(d.p.nome) || "SEM_NOME",
+    compArq(compDoArquivo(d))
+  ].join("_");
+  if (sem) base += "_SEM_ASSINATURA";
+  base = base.slice(0, 150);
+  var arquivo = base + ".pdf", i = 2;
+  while (usados[arquivo]){ arquivo = base + "_" + i + ".pdf"; i++; }
+  usados[arquivo] = true;
+  return arquivo;
+}
+
+function carimbarSemAssinatura(pagina, fonte, rotulo, comp){
+  var tam = pagina.getSize();
+  var vermelho = PDFLib.rgb(0.78, 0.13, 0.17);
+  pagina.drawRectangle({
+    x: 0, y: tam.height - 30, width: tam.width, height: 30,
+    color: PDFLib.rgb(1, 0.93, 0.93), borderColor: vermelho, borderWidth: 1
+  });
+  pagina.drawText("SEM ASSINATURA DO COLABORADOR" + (comp ? "   -   COMPETENCIA " + comp : ""), {
+    x: 16, y: tam.height - 20, size: 11, font: fonte, color: vermelho
+  });
+  if (rotulo && rotulo.y){
+    pagina.drawRectangle({
+      x: 20, y: rotulo.y + 12, width: Math.max(100, tam.width - 40), height: 44,
+      borderColor: vermelho, borderWidth: 1.2, borderDashArray: [4, 3]
+    });
+  }
+}
+
+/* ---------- melhorar a imagem do cartao digitalizado ----------
+   O scanner entrega fundo cinza, texto meio apagado e uma foto de 600 dpi
+   (~2 MB por folha, gravada deitada). Na saida o app:
+   - redesenha a folha em pe, a 200 dpi (continua nitida para ler e imprimir);
+   - acha o tom do papel e o tom da tinta e estica as cores entre eles:
+     o fundo fica branco e o texto escuro, sem apagar a cor da assinatura;
+   - grava em JPEG. So vale para pagina que e uma foto; PDF com texto de
+     verdade sai como veio. */
+var DPI_SAIDA = 200;
+function nivelarCores(img){
+  var d = img.data, n = d.length / 4;
+  var hist = new Uint32Array(256), passo = Math.max(1, Math.floor(n / 400000)), amostras = 0;
+  for (var i = 0; i < n; i += passo){
+    var k = i * 4;
+    hist[(d[k] * 77 + d[k + 1] * 150 + d[k + 2] * 29) >> 8]++;
+    amostras++;
+  }
+  function pct(p){
+    var alvo = amostras * p, acc = 0;
+    for (var v = 0; v < 256; v++){ acc += hist[v]; if (acc >= alvo) return v; }
+    return 255;
+  }
+  /* papel: a maior parte da folha; tinta: o mais escuro que aparece */
+  var branco = pct(0.70), preto = Math.min(pct(0.005), 90);
+  if (branco < 150 || branco - preto < 60) return null;   /* folha estranha: nao mexe */
+  var lut = new Uint8ClampedArray(256), esc = 255 / (branco - preto);
+  for (var v = 0; v < 256; v++) lut[v] = (v - preto) * esc;
+  for (var j = 0; j < d.length; j += 4){ d[j] = lut[d[j]]; d[j + 1] = lut[d[j + 1]]; d[j + 2] = lut[d[j + 2]]; }
+  return { preto: preto, branco: branco };
+}
+async function paginaMelhorada(reg, n){
+  var foto = await fotoDaPagina(reg, n);
+  if (!foto) return null;
+  var doc = await abrirDoc(reg), pg = await doc.getPage(n);
+  var vp1 = pg.getViewport({ scale: 1 });
+  var vp = pg.getViewport({ scale: DPI_SAIDA / 72 });
+  var alvo = await desenharPagina(pg, vp.width, vp.height, vp, null, { reg: reg, n: n });
+  try{
+    var img = alvo.ctx.getImageData(0, 0, alvo.tela.width, alvo.tela.height);
+    if (!nivelarCores(img)) return null;
+    alvo.ctx.putImageData(img, 0, 0);
+    var blob = await telaParaBlob(alvo.tela, "image/jpeg", 0.82);
+    return {
+      jpg: new Uint8Array(await blob.arrayBuffer()), largura: vp1.width, altura: vp1.height,
+      /* ponto da pagina original -> ponto da pagina nova (em pe, sem giro) */
+      ponto: function(x, y){ var q = vp1.convertToViewportPoint(x, y); return { x: q[0], y: vp1.height - q[1] }; }
+    };
+  } finally {
+    descartarTela(alvo.tela);
+    try{ pg.cleanup(); } catch (e){}
+  }
+}
+
+function novoCacheLib(){ return new Map(); }
+async function carregarLib(pdf, cache){
+  if (cache.has(pdf.id)){
+    var v = cache.get(pdf.id); cache.delete(pdf.id); cache.set(pdf.id, v); return v;
+  }
+  var doc = await PDFLib.PDFDocument.load(await pdf.blob.arrayBuffer(), {
+    ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false
+  });
+  cache.set(pdf.id, doc);
+  while (cache.size > 4) cache.delete(cache.keys().next().value);
+  return doc;
+}
+
+async function copiarPara(novo, cartoes, cache, letra, comp){
+  var copiadas = 0;
+  var melhorar = $("chkMelhorar") && $("chkMelhorar").checked;
+  for (var i = 0; i < cartoes.length; i++){
+    var c = cartoes[i];
+    var origem = await carregarLib(c.pdf, cache);
+    var idx = c.paginas.map(function(n){ return n - 1; }).filter(function(x){ return x < origem.getPageCount(); });
+    for (var j = 0; j < idx.length; j++){
+      var meta = c.pdf.paginas[idx[j]];
+      var m = null;
+      if (melhorar){ try{ m = await paginaMelhorada(c.pdf, idx[j] + 1); } catch (e){ m = null; } }
+      if (m){
+        var nova = novo.addPage([m.largura, m.altura]);
+        var foto = await novo.embedJpg(m.jpg);
+        nova.drawImage(foto, { x: 0, y: 0, width: m.largura, height: m.altura });
+        if (letra){
+          var rot = meta && meta.rotulo ? Object.assign({}, meta.rotulo, m.ponto(meta.rotulo.x, meta.rotulo.y)) : null;
+          carimbarSemAssinatura(nova, letra, rot, comp);
+        }
+      } else {
+        var cp = (await novo.copyPages(origem, [idx[j]]))[0];
+        novo.addPage(cp);
+        if (letra) carimbarSemAssinatura(cp, letra, meta && meta.rotulo, comp);
+      }
+      copiadas++;
+    }
+  }
+  return copiadas;
+}
+
+async function montarPdf(cartoes, cache, sem, comp){
+  var novo = await PDFLib.PDFDocument.create();
+  var letra = sem ? await novo.embedFont(PDFLib.StandardFonts.HelveticaBold) : null;
+  var n = await copiarPara(novo, cartoes, cache, letra, comp);
+  if (!n) return null;
+  /* sem object streams o arquivo sai um pouco maior, porem salva bem mais rapido */
+  return await novo.save({ useObjectStreams: false });
+}
+
+async function baixarZip(){
+  if (ocupado()) return;
+  var dados = calcular();
+  var g = $("selGrupo").value;
+  var lista = grupoSelecionado(dados);
+  var extras = g === "todos" ? naoIdentDaComp() : [];
+  if (!lista.length && !extras.length){ msg("Nenhum cartão localizado nesse grupo."); return; }
+  estado.trabalhando = "zip";
+  var g = Tarefa.geracao, t0 = Date.now();
+  Vivo.ligar();
+  atualizarBotoes(dados);
+  /* monta na ordem dos arquivos de origem: assim cada PDF grande e aberto uma vez so */
+  lista = lista.slice().sort(function(a, b){
+    var pa = a.cartoes[0] ? a.cartoes[0].pdf.id : "", pb = b.cartoes[0] ? b.cartoes[0].pdf.id : "";
+    return pa < pb ? -1 : pa > pb ? 1 : 0;
+  });
+  try{
+    var alvo = compAlvo();
+    var rot = { pendentes: "pendentes", sem: "sem-assinatura", todos: "todos" }[g];
+    var base = "cartoes-" + rot + "-" + (alvo ? compArq(alvo) : "sem-competencia");
+    var zip = new JSZip(), tam = 0, parte = 1, usados = {}, feitos = 0, carimbados = 0;
+    var cache = novoCacheLib();
+    var total = lista.length + extras.length;
+    var fechar = async function(ultima){
+      if (!tam) return;
+      progresso(1, 1, "Compactando parte " + parte + "...");
+      var blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+      baixar(blob, base + (ultima && parte === 1 ? "" : "-parte" + parte) + ".zip");
+      parte++; zip = new JSZip(); tam = 0;
+      await esperar(300);
+    };
+    for (var i = 0; i < lista.length; i++){
+      if (!valendo(g)) return;
+      await cederVez();
+      var d = lista[i];
+      progresso(i, total, "Montando " + (i + 1) + " de " + total + tempoQueFalta(i, total, t0));
+      var sem = d.assinatura.sit === "sem";
+      var bytes = await montarPdf(d.cartoes, cache, sem, compTxt(compDoArquivo(d)));
+      if (!bytes) continue;
+      var pasta = sem && g !== "sem" ? "SEM_ASSINATURA/" : "";
+      zip.file(base + "/" + pasta + nomeArquivo(d, sem, usados), bytes);
+      tam += bytes.length; feitos++;
+      if (sem) carimbados++;
+      if (tam > LIMITE_ZIP) await fechar(false);
+    }
+    for (var j = 0; j < extras.length; j++){
+      if (!valendo(g)) return;
+      await cederVez();
+      var c = extras[j];
+      progresso(lista.length + j, total, "Montando " + (lista.length + j + 1) + " de " + total + tempoQueFalta(lista.length + j, total, t0));
+      var b2 = await montarPdf([c], cache, false, "");
+      if (!b2) continue;
+      var nome;
+      if (c.idt && (c.idt.mat || c.idt.cab)){
+        nome = [limparParte(c.idt.mat) || "SEM_MATRICULA", limparParte(c.idt.cab) || "SEM_NOME", compArq(c.comp)].join("_");
+      } else {
+        nome = limparParte(c.pdf.nome.replace(/\.pdf$/i, "")).slice(0, 80) + "_PAG_" + c.paginas[0] + "_" + compArq(c.comp);
+      }
+      var arqNI = "NAO_IDENTIFICADOS/" + nome + ".pdf", k2 = 2;
+      while (usados[arqNI]){ arqNI = "NAO_IDENTIFICADOS/" + nome + "_" + k2 + ".pdf"; k2++; }
+      usados[arqNI] = true;
+      zip.file(base + "/" + arqNI, b2);
+      tam += b2.length; feitos++;
+      if (tam > LIMITE_ZIP) await fechar(false);
+    }
+    if (!feitos){ msg("Não foi possível copiar as páginas."); return; }
+    await fechar(true);
+    msg("ZIP gerado com " + feitos + " cartão(ões)" + (parte > 2 ? " em " + (parte - 1) + " partes" : "") + "." +
+      (carimbados ? " " + carimbados + " com _SEM_ASSINATURA." : "") +
+      (extras.length ? " " + extras.length + " em NAO_IDENTIFICADOS." : ""));
+  } catch (e){
+    msg("Não foi possível gerar o ZIP: " + e.message);
+  } finally {
+    if (valendo(g)){
+      estado.trabalhando = "";
+      Vivo.desligar();
+      progresso(null);
+      atualizarBotoes(estado.ultimo);
+    }
+  }
+}
+
+async function baixarPdfUnico(){
+  if (ocupado()) return;
+  var dados = calcular();
+  var g = $("selGrupo").value;
+  var lista = grupoSelecionado(dados);
+  var extras = g === "todos" ? naoIdentDaComp() : [];
+  if (!lista.length && !extras.length){ msg("Nenhum cartão localizado nesse grupo."); return; }
+  estado.trabalhando = "pdf";
+  var g = Tarefa.geracao, t0 = Date.now();
+  Vivo.ligar();
+  atualizarBotoes(dados);
+  lista = lista.slice().sort(function(a, b){
+    var pa = a.cartoes[0] ? a.cartoes[0].pdf.id : "", pb = b.cartoes[0] ? b.cartoes[0].pdf.id : "";
+    return pa < pb ? -1 : pa > pb ? 1 : 0;
+  });
+  try{
+    var novo = await PDFLib.PDFDocument.create();
+    var letra = await novo.embedFont(PDFLib.StandardFonts.HelveticaBold);
+    var cache = novoCacheLib(), feitos = 0, carimbados = 0;
+    var total = lista.length + extras.length;
+    for (var i = 0; i < lista.length; i++){
+      if (!valendo(g)) return;
+      await cederVez();
+      progresso(i, total, "Montando " + (i + 1) + " de " + total + tempoQueFalta(i, total, t0));
+      var sem = lista[i].assinatura.sit === "sem";
+      var n = await copiarPara(novo, lista[i].cartoes, cache, sem ? letra : null, compTxt(compDoArquivo(lista[i])));
+      if (n){ feitos++; if (sem) carimbados++; }
+    }
+    for (var j = 0; j < extras.length; j++){
+      if (!valendo(g)) return;
+      await cederVez();
+      progresso(lista.length + j, total, "Montando " + (lista.length + j + 1) + " de " + total + tempoQueFalta(lista.length + j, total, t0));
+      if (await copiarPara(novo, [extras[j]], cache, null, "")) feitos++;
+    }
+    if (!feitos){ msg("Não foi possível copiar as páginas."); return; }
+    progresso(1, 1, "Salvando PDF...");
+    var bytes = await novo.save({ useObjectStreams: false });
+    var alvo = compAlvo();
+    baixar(new Blob([bytes], { type: "application/pdf" }), "cartoes-" + (alvo ? compArq(alvo) : "sem-competencia") + ".pdf");
+    msg("PDF gerado com " + feitos + " cartão(ões)." + (carimbados ? " " + carimbados + " marcado(s) como sem assinatura." : ""));
+  } catch (e){
+    msg("Não foi possível gerar o PDF: " + e.message);
+  } finally {
+    if (valendo(g)){
+      estado.trabalhando = "";
+      Vivo.desligar();
+      progresso(null);
+      atualizarBotoes(estado.ultimo);
+    }
+  }
+}
+
+function baixarExcel(){
+  var dados = calcular();
+  var alvo = compAlvo();
+  var usados = {};
+  var linhas = dados.map(function(d){
+    var av = d.assinatura;
+    var sem = av.sit === "sem";
+    var comps = (d.cartoes.length ? d.cartoes : d.outras).map(function(c){ return c.comp ? compTxt(c.comp) : "não identificada"; });
+    var linha = {
+      "Matrícula": d.p.matricula,
+      "Nome": d.p.nome,
+      "Gerência": d.p.extra
+    };
+    if (estado.col.sit >= 0) linha["Situação na planilha"] = d.p.sitTexto;
+    linha["Cartão"] = d.postado ? "Recebido" : "Pendente";
+    linha["Competência do cartão"] = comps.filter(function(v, i){ return comps.indexOf(v) === i; }).join(", ");
+    linha["Só outra competência"] = !d.cartoes.length && d.outras.length ? "Sim" : "";
+    linha["Assinatura"] = av.sit === "assinado" ? "Assinado" : sem ? "Sem assinatura" : av.sit === "duvida" ? "Conferir" : "Não verificado";
+    linha["Como foi apurado"] = d.manual ? "marcado manualmente" : (av.como || "");
+    linha["Localizado em"] = descreverCartoes(d.cartoes.length ? d.cartoes : d.outras) || (d.porPlanilha ? "planilha: " + d.p.sitTexto : "");
+    linha["Arquivo gerado"] = d.cartoes.length ? nomeArquivo(d, sem, usados) : "";
+    linha["Competência conferida"] = compTxt(alvo);
+    return linha;
+  });
+  var wb = XLSX.utils.book_new();
+  function aba(lista, nome, vazio){
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lista.length ? lista : [{ "Resultado": vazio }]), nome);
+  }
+  aba(linhas, "Conferencia", "Sem colaboradores");
+  aba(linhas.filter(function(l){ return l["Cartão"] === "Pendente"; }), "Pendentes", "Nenhum pendente");
+  aba(linhas.filter(function(l){ return l["Assinatura"] === "Sem assinatura"; }), "Sem assinatura", "Nenhum sem assinatura");
+  aba(linhas.filter(function(l){ return l["Só outra competência"] === "Sim"; }), "Outra competencia", "Nenhum");
+  aba(naoIdentDaComp().map(function(c){
+    return { "Arquivo": c.pdf.nome, "Páginas": c.paginas.join(", "), "Competência": compTxt(c.comp) };
+  }), "Nao identificados", "Nenhum");
+  XLSX.writeFile(wb, "conferencia_cartoes_" + (alvo ? compArq(alvo) : "sem-competencia") + ".xlsx");
+}
+
+function copiarPendentes(){
+  var dados = estado.ultimo.length ? estado.ultimo : calcular();
+  var pend = dados.filter(function(d){ return !d.postado; });
+  var sem = dados.filter(function(d){ return d.assinatura.sit === "sem"; });
+  var alvo = compAlvo();
+  var txt = "Cartões de ponto" + (alvo ? " — competência " + compTxt(alvo) : "") + "\n\nAinda não recebidos (" + pend.length + "):\n";
+  txt += pend.map(function(d){ return "• " + (d.p.matricula ? d.p.matricula + " - " : "") + d.p.nome; }).join("\n");
+  if (sem.length){
+    txt += "\n\nRecebidos sem assinatura (" + sem.length + "):\n";
+    txt += sem.map(function(d){ return "• " + (d.p.matricula ? d.p.matricula + " - " : "") + d.p.nome; }).join("\n");
+  }
+  navigator.clipboard.writeText(txt).then(function(){
+    var b = $("btnCopiar");
+    var antigo = b.textContent;
+    b.textContent = "Lista copiada";
+    setTimeout(function(){ b.textContent = antigo; }, 1800);
+  }).catch(function(){ window.prompt("Copie a lista abaixo:", txt); });
+}
+
+/* ---------- eventos ---------- */
+$("inXls").addEventListener("change", async function(e){
+  var f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try{
+    estado.planilhaNome = "";
+    await lerPlanilha(f, null);
+    DB.put("planilha", f);
+    salvarSessao();
+  } catch (err){ msg("Não foi possível ler a planilha."); }
+});
+$("inPdf").addEventListener("change", function(e){
+  if (e.target.files.length) adicionarPdfs(Array.prototype.slice.call(e.target.files));
+  e.target.value = "";
+});
+$("selAba").addEventListener("change", function(e){ usarAba(e.target.value, null); });
+
+var mapaCol = { selMat: "mat", selNome: "nome", selExtra: "extra", selSit: "sit", selComp: "comp" };
+Object.keys(mapaCol).forEach(function(id){
+  $(id).addEventListener("change", function(e){
+    estado.col[mapaCol[id]] = parseInt(e.target.value, 10);
+    montarPessoas();
+  });
+});
+
+["zonaXls", "zonaPdf"].forEach(function(id){
+  var z = $(id);
+  z.addEventListener("dragover", function(ev){ ev.preventDefault(); z.classList.add("sobre"); });
+  z.addEventListener("dragleave", function(){ z.classList.remove("sobre"); });
+  z.addEventListener("drop", async function(ev){
+    ev.preventDefault(); z.classList.remove("sobre");
+    var fs = Array.prototype.slice.call(ev.dataTransfer.files);
+    if (id === "zonaPdf"){
+      var pdfs = fs.filter(function(f){ return /\.pdf$/i.test(f.name); });
+      if (pdfs.length) adicionarPdfs(pdfs);
+    } else if (fs[0]){
+      try{
+        estado.planilhaNome = "";
+        await lerPlanilha(fs[0], null);
+        DB.put("planilha", fs[0]);
+        salvarSessao();
+      } catch (err){ msg("Não foi possível ler a planilha."); }
+    }
+  });
+});
+
+var tComp = null;
+$("comp").addEventListener("input", function(){
+  clearTimeout(tComp);
+  tComp = setTimeout(function(){
+    var v = $("comp").value.trim(), c = parseComp(v);
+    $("comp").classList.toggle("invalido", !!v && !c);
+    $("compInfo").textContent = !v ? "mês/ano do cartão" : c ? "conferindo " + compTxt(c) : "use mês/ano, ex. 09/2026";
+    filtrarPessoas();
+    desenhar();
+    salvarSessao();
+  }, 300);
+});
+
+function acharDado(chave){
+  return estado.ultimo.filter(function(d){ return d.p.chave === chave; })[0];
+}
+function marcarAssin(chave, sit){
+  var d = acharDado(chave);
+  if (!d || !d.chaveAssin) return;
+  estado.assinManual[chave] = { sit: sit, cartao: d.chaveAssin };
+  estado.versaoAssin++;
+  salvarSessao();
+  desenhar();
+}
+function alternarPostado(chave){
+  var d = acharDado(chave);
+  if (!d) return;
+  var novo = d.postado ? "pendente" : "ok";
+  var auto = d.cartoes.length > 0 || d.p.situacao === "ok";
+  if ((novo === "ok") === auto) delete estado.manual[chave]; else estado.manual[chave] = novo;
+  salvarSessao();
+  desenhar();
+}
+
+document.querySelector(".principal").addEventListener("click", function(ev){
+  var t = ev.target.closest("button");
+  if (!t) return;
+  var acao = t.getAttribute("data-acao");
+  var chave = t.getAttribute("data-chave");
+  if (t.classList.contains("chip")){
+    estado.filtro = t.getAttribute("data-f"); salvarSessao(); desenhar(); return;
+  }
+  if (t.classList.contains("tick")){ alternarPostado(chave); return; }
+  if (acao === "postado"){ alternarPostado(chave); return; }
+  if (acao === "assinado"){ marcarAssin(chave, "assinado"); return; }
+  if (acao === "semAssin"){ marcarAssin(chave, "sem"); return; }
+  if (acao === "verTodos"){ estado.verTodos = !estado.verTodos; salvarSessao(); desenhar(); return; }
+  if (acao === "fecharAviso"){ estado.recuperado = null; desenhar(); return; }
+  if (acao === "usarComp"){
+    $("comp").value = t.getAttribute("data-comp");
+    $("comp").dispatchEvent(new Event("input"));
+  }
+});
+
+var tBusca = null;
+$("busca").addEventListener("input", function(ev){
+  clearTimeout(tBusca);
+  tBusca = setTimeout(function(){ estado.busca = ev.target.value; desenharTabela(estado.ultimo); }, 150);
+});
+$("selSetor").addEventListener("change", function(ev){ estado.setor = ev.target.value; salvarSessao(); desenhar(); });
+$("selGrupo").addEventListener("change", function(){ salvarSessao(); atualizarBotoes(estado.ultimo); });
+$("selRegiao").addEventListener("change", function(){
+  salvarSessao();
+  if (!Object.keys(estado.assin).length) return;
+  estado.assin = {}; estado.verificado = false; estado.versaoAssin++;
+  salvarAssin(true);
+  desenhar();
+  msg("Região alterada. Clique em “Verificar assinaturas” para aplicar.");
+});
+$("btnParar").addEventListener("click", function(){ cancelarTudo(); });
+$("btnReler").addEventListener("click", relerCartoes);
+$("btnAssin").addEventListener("click", verificarAssinaturas);
+$("btnZip").addEventListener("click", baixarZip);
+$("btnPdf").addEventListener("click", baixarPdfUnico);
+$("btnXlsx").addEventListener("click", baixarExcel);
+$("btnCopiar").addEventListener("click", copiarPendentes);
+$("btnLimpar").addEventListener("click", async function(){
+  if (fila.rodando || estado.trabalhando){
+    if (!confirm("Há uma tarefa em andamento. Parar e apagar tudo mesmo assim?")) return;
+    cancelarTudo(true);
+  } else if (!confirm("Apagar planilha, PDFs, marcações e o andamento salvo?")) return;
+  await DB.limpar();
+  location.reload();
+});
+
+/* ---------- retomada ---------- */
+(async function iniciar(){
+  await DB.abrir();
+  var s = await DB.get("sessao");
+  if (!s){ desenhar(); return; }
+  msg("Recuperando sessão anterior...");
+  try{
+    $("comp").value = s.comp || "";
+    var c = parseComp(s.comp);
+    if (c) $("compInfo").textContent = "conferindo " + compTxt(c);
+    if (s.regiao) $("selRegiao").value = s.regiao;
+    if (s.grupo) $("selGrupo").value = s.grupo;
+    estado.manual = s.manual || {};
+    estado.assinManual = s.assinManual || {};
+    estado.filtro = s.filtro || "todos";
+    estado.setor = s.setor || "";
+    estado.verificado = !!s.verificado;
+    estado.indistinto = !!s.indistinto;
+    estado.verTodos = !!s.verTodos;
+    estado.assin = (await DB.get("assin")) || {};
+
+    var plan = await DB.get("planilha");
+    if (plan){
+      try{ await lerPlanilha(plan, s); } catch (e){ msg("Não foi possível recuperar a planilha. Carregue de novo."); }
+    }
+    var ids = s.pdfIds || [], incompletos = 0;
+    for (var i = 0; i < ids.length; i++){
+      var blob = await DB.get("pdfarq:" + ids[i]);
+      if (!blob) continue;
+      var meta = (await DB.get("pdfmeta:" + ids[i])) || {};
+      if (meta.versao !== 2){ meta.blocos = 0; meta.completo = false; meta.erro = ""; }
+      var paginas = [];
+      for (var b = 0; b < (meta.blocos || 0); b++){
+        var bloco = await DB.get("pdfpag:" + ids[i] + ":" + b);
+        if (!bloco) break;
+        paginas = paginas.concat(bloco);
+      }
+      meta.paginas = paginas;
+      if (paginas.length < (meta.total || 0) || !meta.total) meta.completo = meta.completo && paginas.length === meta.total;
+      var reg = novoRegistro(ids[i], meta.nome || blob.name || "arquivo.pdf", blob, meta);
+      if (!reg.completo) incompletos++;
+      estado.pdfs.push(reg);
+    }
+    if (plan || estado.pdfs.length) estado.recuperado = { pdfs: estado.pdfs.length, incompletos: incompletos };
+    desenharArquivos();
+    desenhar();
+    msg(estado.recuperado ? "Sessão anterior recuperada." : "");
+    salvarSessao();
+    if (incompletos) processarFila();
+  } catch (e){
+    msg("Não foi possível recuperar a sessão anterior.");
+    desenhar();
+  }
+})();
+</script>
+</body>
+</html>
