@@ -10,11 +10,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
-  --ink:#17191c;
-  --graphite:#22262b;
-  --paper:#fbfaf8;
+  --ink:#123a67;
+  --graphite:#0758a5;
+  --paper:#f4f8fd;
   --card:#ffffff;
-  --line:#ddd8cf;
+  --line:#d4e1ef;
   --muted:#6d6b66;
   --amber:#e39a11;
   --amber-soft:#fdf3dd;
@@ -37,12 +37,12 @@ button{font:inherit}
 
 .topo{background:var(--graphite);color:#f3f1ec;padding:14px 22px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
 .topo h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.2px}
-.topo p{margin:2px 0 0;font-size:12.5px;color:#a9a6a0}
-.comp{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfccc6}
-.comp input{background:#2f343a;border:1px solid #444a51;color:#fff;border-radius:4px;padding:6px 9px;font-size:13px;width:130px}
+.topo p{margin:2px 0 0;font-size:12.5px;color:#d8eaff}
+.comp{display:flex;align-items:center;gap:8px;font-size:13px;color:#e2efff}
+.comp input{background:#064782;border:1px solid #77abe0;color:#fff;border-radius:4px;padding:6px 9px;font-size:13px;width:130px}
 
 .wrap{display:grid;grid-template-columns:330px minmax(0,1fr);align-items:start}
-.lado{border-right:1px solid var(--line);padding:20px;min-height:calc(100vh - 62px);background:#f7f5f1}
+.lado{border-right:1px solid var(--line);padding:20px;min-height:calc(100vh - 62px);background:#edf4fc}
 .principal{padding:22px 24px 60px}
 @media (max-width:900px){
   .wrap{grid-template-columns:1fr}
@@ -71,7 +71,7 @@ label.campo{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 
 .acoes{display:flex;flex-direction:column;gap:8px}
 .btn{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:9px 12px;border-radius:4px;cursor:pointer;font-size:13.5px;font-weight:600}
-.btn:hover{background:#000}
+.btn:hover{background:#074e91}
 .btn.sec{background:#fff;color:var(--ink)}
 .btn.sec:hover{background:#f0ece4}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -98,7 +98,7 @@ label.campo{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 .recorte img{display:block;width:100%;background:#fff;border-bottom:1px solid #eee9e0}
 .recorte .info{padding:7px 9px;font-size:12px}
 .recorte .info b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.recorte button{width:100%;border:none;border-top:1px solid var(--line);background:#f7f5f1;padding:6px;cursor:pointer;font-size:12px}
+.recorte button{width:100%;border:none;border-top:1px solid var(--line);background:#edf4fc;padding:6px;cursor:pointer;font-size:12px}
 .recorte button:hover{background:#ece7dd}
 
 .filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
@@ -133,7 +133,7 @@ tr:last-child td{border-bottom:none}
 .tag.outra{background:#e8eef6;color:#2d4f7c}
 .origem.outra{color:#2d4f7c}
 .comp input.invalido{border-color:#ff6b6b}
-.comp small{display:block;font-size:11px;color:#a9a6a0}
+.comp small{display:block;font-size:11px;color:#d8eaff}
 </style>
 </head>
 <body>
@@ -155,7 +155,16 @@ tr:last-child td{border-bottom:none}
 <div class="wrap">
   <aside class="lado">
     <div class="etapa">
-      <h2><span>1</span> Lista de colaboradores</h2>
+      <h2>O que você quer fazer?</h2>
+      <label class="campo" for="modoUso">Escolha uma opção</label>
+      <select id="modoUso">
+        <option value="extrair">Extrair todos os cartões — sem planilha</option>
+        <option value="conferir">Conferir pendentes — com planilha</option>
+      </select>
+      <p class="dica" id="modoInfo">Envie kits demissionais: extrai todos os cartões reconhecidos, de qualquer competência e situação.</p>
+    </div>
+    <div class="etapa">
+      <h2><span>1</span> Lista de colaboradores (opcional)</h2>
       <p class="dica">Planilha em Excel ou CSV com matrícula e nome.</p>
       <label class="zona" id="zonaXls" for="inXls">
         <b id="rotXls">Escolher planilha</b>
@@ -180,7 +189,7 @@ tr:last-child td{border-bottom:none}
 
     <div class="etapa">
       <h2><span>2</span> Cartões em PDF</h2>
-      <p class="dica">Um PDF único, vários lotes ou arquivos separados. Páginas de outros documentos são ignoradas.</p>
+      <p class="dica">Envie PDFs com documentos misturados. Somente as páginas reconhecidas como cartões de ponto serão incluídas no download. Páginas em branco, outros documentos e páginas não reconhecidas ficam de fora.</p>
       <label class="zona" id="zonaPdf" for="inPdf">
         <b id="rotPdf">Escolher PDFs</b>
         <small>arraste os arquivos aqui</small>
@@ -228,7 +237,7 @@ tr:last-child td{border-bottom:none}
   </aside>
 
   <main class="principal">
-    <div id="secVazio" class="vazio">Carregue a planilha de colaboradores para começar.</div>
+    <div id="secVazio" class="vazio">Envie os PDFs para extrair somente os cartões de ponto. A planilha é opcional para conferir os colaboradores.</div>
     <div id="secPlacar"></div>
     <div id="secAvisos"></div>
     <div id="secRevisao"></div>
@@ -653,7 +662,8 @@ function parseCompCelula(bruto, formatado){
   return parseComp(bruto) || parseComp(formatado) || detectarComp(rawDe(formatado));
 }
 
-function compAlvo(){ return parseComp($("comp").value); }
+function modoExtrair(){ return $("modoUso").value === "extrair"; }
+function compAlvo(){ return modoExtrair() ? null : parseComp($("comp").value); }
 
 /* ---------- memória do navegador (IndexedDB) ---------- */
 var DB = {
@@ -1105,6 +1115,11 @@ async function ocrComLeitor(w, pg, unica, fonte){
       var extra = await w.recognize(await recorteFaixa(alvo, 0, e0, W, e1 - e0));
       txt += "\n" + (extra.data.text || "");
     }
+    // Confirma as marcações no corpo do cartão digitalizado.
+    if (ehCartao){
+      var corpoOcr = await w.recognize(await recorteFaixa(alvo, 0, Math.round(H * 0.30), W, Math.round(H * 0.38)));
+      txt += "\n" + (corpoOcr.data.text || "");
+    }
     /* documento que nao e cartao para aqui: so o topo foi lido */
     if (ehCartao || norm.length < 60){
       var y0 = Math.round(H * FAIXA_BAIXO), x0 = Math.round(W * FAIXA_BAIXO_X);
@@ -1355,7 +1370,7 @@ function nomeNoCabecalho(cab, nomeNorm){
 
 var indice = { chave: "", resultado: null };
 function obterIndice(){
-  var k = estado.versaoPessoas + "|" + estado.pdfs.map(function(f){
+  var k = $("modoUso").value + "|" + estado.versaoPessoas + "|" + estado.pdfs.map(function(f){
     return f.id + ":" + f.paginas.length + ":" + (f.completo ? 1 : 0);
   }).join(",");
   if (indice.chave !== k) indice = { chave: k, resultado: construirIndice() };
@@ -1378,7 +1393,7 @@ function construirIndice(){
   });
 
   var unicas = new Map();
-  estado.pessoasTodas.forEach(function(p){ if (!unicas.has(p.chave)) unicas.set(p.chave, p); });
+  (modoExtrair() ? [] : estado.pessoasTodas).forEach(function(p){ if (!unicas.has(p.chave)) unicas.set(p.chave, p); });
 
   /* número que aparece em boa parte dos cartões (ano, CNPJ, código da obra) não identifica ninguém */
   var comuns = new Set(), corte = Math.max(5, refs.length * 0.3);
@@ -1467,7 +1482,7 @@ function construirIndice(){
         if (!pg.temRotuloId && soltas < MAX_CONTINUACAO){ ns.push(m); soltas++; continue; }
         break;
       }
-      if ((pg.tipo === "resumo" || pg.tipo === "vazio") && soltas < MAX_CONTINUACAO){ ns.push(m); soltas++; continue; }
+      // Páginas sem confirmação de cartão nunca entram na exportação.
       break;
     }
     return ns;
@@ -1510,11 +1525,6 @@ function construirIndice(){
           (cartoesPor[p.chave] = cartoesPor[p.chave] || []).push(c);
           return false;
         });
-      } else if (pdf.paginas.length && pdf.paginas.length <= 3 && pdf.paginas.every(function(pg){ return pg.tipo !== "outro"; })){
-        var todas = pdf.paginas.map(function(pg){ return pg.n; });
-        (cartoesPor[p.chave] = cartoesPor[p.chave] || []).push({
-          pdf: pdf, paginas: todas, comp: compDe(pdf, todas), via: "nome do arquivo"
-        });
       }
     });
   });
@@ -1525,6 +1535,7 @@ function construirIndice(){
 function chaveCartao(c){ return c.pdf.id + "#" + c.paginas.join(","); }
 
 function calcular(){
+  if (modoExtrair()) return [];
   var ind = obterIndice();
   var alvo = compAlvo();
   return estado.pessoas.map(function(p){
@@ -1861,13 +1872,17 @@ function agendarDesenho(){
 
 function desenhar(){
   ultimoDesenho = Date.now();
-  var tem = estado.pessoas.length > 0 || estado.pessoasTodas.length > 0;
+  var tem = !modoExtrair() && (estado.pessoas.length > 0 || estado.pessoasTodas.length > 0);
   $("secVazio").hidden = tem;
   $("secFiltros").hidden = !tem;
   if (!tem){
     ["secPlacar","secAvisos","secRevisao","secTabela"].forEach(function(id){ $(id).innerHTML = ""; });
     chaveRevisao = "";
     estado.ultimo = [];
+    if (estado.pdfs.length){
+      var reconhecidas = estado.pdfs.reduce(function(n, pdf){ return n + pdf.paginas.filter(function(pg){ return pg.tipo === "cartao"; }).length; }, 0);
+      $("secAvisos").innerHTML = '<div class="aviso">' + reconhecidas + ' página(s) de cartão de ponto reconhecida(s). Os demais documentos ficam fora do download. Páginas não reconhecidas devem ser conferidas nos originais. Você pode baixar sem planilha.</div>';
+    }
     atualizarBotoes([]);
     return;
   }
@@ -2257,7 +2272,9 @@ async function copiarPara(novo, cartoes, cache, letra, comp){
   for (var i = 0; i < cartoes.length; i++){
     var c = cartoes[i];
     var origem = await carregarLib(c.pdf, cache);
-    var idx = c.paginas.map(function(n){ return n - 1; }).filter(function(x){ return x < origem.getPageCount(); });
+    var idx = c.paginas.map(function(n){ return n - 1; }).filter(function(x){
+      return x >= 0 && x < origem.getPageCount() && c.pdf.paginas[x] && c.pdf.paginas[x].tipo === "cartao";
+    });
     for (var j = 0; j < idx.length; j++){
       var meta = c.pdf.paginas[idx[j]];
       var m = null;
@@ -2482,6 +2499,24 @@ function copiarPendentes(){
 }
 
 /* ---------- eventos ---------- */
+function atualizarModo(){
+  var extrair = modoExtrair();
+  $("inXls").closest(".etapa").hidden = extrair;
+  $("selGrupo").value = "todos";
+  $("selGrupo").disabled = extrair;
+  $("comp").disabled = extrair;
+  $("btnAssin").closest(".etapa").hidden = extrair;
+  $("modoInfo").textContent = extrair
+    ? "Envie kits demissionais: extrai todos os cartões reconhecidos, de qualquer competência e situação. Não precisa de planilha."
+    : "Carregue a planilha e os PDFs para identificar quem está pendente. Selecione o grupo que deseja baixar.";
+  $("secVazio").textContent = extrair
+    ? "Envie os kits demissionais em PDF. Depois, baixe somente os cartões de ponto em ZIP ou PDF único."
+    : "Carregue a planilha de colaboradores e os PDFs para conferir os pendentes.";
+  indice.chave = "";
+  desenhar();
+}
+$("modoUso").addEventListener("change", atualizarModo);
+
 $("inXls").addEventListener("change", async function(e){
   var f = e.target.files[0];
   e.target.value = "";
@@ -2667,6 +2702,9 @@ $("btnLimpar").addEventListener("click", async function(){
     desenhar();
   }
 })();
+atualizarModo();
 </script>
 </body>
 </html>
+
+  
